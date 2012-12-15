@@ -1,0 +1,3 @@
+* Fairbrook 0.1.0
+- [ ] Find good design(s) which may be of use.
+- [ ] Implement them.
