@@ -58,3 +58,20 @@
    (fn [m1 m2]
      (merge-with f m1 m2))
    maps))
+
+(defn ff-meta
+  "Takes in two function of two arguments, and returns a new function which
+  applies the first function to the value of the two arguments given and applies
+  the second function to their metadata. Attaches the newly generated
+  metadata-map to the new value."
+  [f meta-f]
+  (fn [a b]
+    (with-meta
+      (f a b)
+      (meta-f (meta a) (meta b)))))
+
+(defn fm-meta
+  "Takes in a function of two arguments, and returns the same function which in
+  addition merges their metadata and attaches it to the resulting value."
+  [f]
+  (ff-meta f merge))
