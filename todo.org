@@ -1,3 +1,7 @@
 * Fairbrook 0.1.0
-- [ ] Find good design(s) which may be of use.
+- [ ] Find good design(s) which may be of use. [0/4]
+  - [ ] Meta
+  - [ ] Path
+  - [ ] Multi
+  - [ ] Fns (?)
 - [ ] Implement them.
