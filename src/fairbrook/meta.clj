@@ -21,19 +21,25 @@
 
 (defn mono-reduce
   "Performs a reduction on elements and their metadata with f. Returns the
-  result with the resulting metadata attached."
-  [f elements]
-  (with-meta
-    (reduce f elements)
-    (reduce f (map meta elements))))
+  result with the resulting metadata attached. If no init value is given, the
+  init value will be an empty map."
+  ([f elements]
+     (mono-reduce f {} elements))
+  ([f init elements]
+     (with-meta
+       (reduce f init elements)
+       (reduce f init (map meta elements)))))
 
 (defn duo-reduce
   "Performs a reduction on elements with f, and their metadata with
-  meta-f. Returns the result with the resulting metadata attached."
-  [f meta-f elements]
-  (with-meta
-    (reduce f elements)
-    (reduce meta-f (map meta elements))))
+  meta-f. Returns the result with the resulting metadata attached. If no init
+  values are given, the init value will be empty maps."
+  ([f meta-f elements]
+     (duo-reduce f {} meta-f {} elements))
+  ([f init meta-f meta-init elements]
+     (with-meta
+       (reduce f init elements)
+       (reduce meta-f meta-init (map meta elements)))))
 
 (defn meta-merge
   "As merge, but will merge the metadata from each map as well. As with merge,
