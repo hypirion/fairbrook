@@ -1,19 +1,18 @@
 (ns fairbrook.meta)
 
 (defn ff
-  "Takes in two functions of two arguments, and returns a new function which
-  applies the first function to the value of the two arguments given and applies
-  the second function to their metadata. Attaches the newly generated
-  metadata to the new value."
+  "Takes in two functions, and returns a new function which applies the first
+  function to the value of the arguments given and applies the second function
+  to their metadata. Attaches the newly generated metadata to the new value."
   [f meta-f]
-  (fn [a b]
+  (fn [& args]
     (with-meta
-      (f a b)
-      (meta-f (meta a) (meta b)))))
+      (apply f args)
+      (apply meta-f (map meta args)))))
 
 (defn fm
-  "Takes in a function of two arguments, and returns the same function which in
-  addition merges their metadata and attaches it to the resulting value."
+  "Takes in a function and returns the same function which in addition merges
+  their metadata and attaches it to the resulting value."
   [f]
   (ff f merge))
 
