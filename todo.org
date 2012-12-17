@@ -1,8 +1,9 @@
 * Fairbrook 0.1.0
-- [ ] Find good design(s) which may be of use.
+- [-] Find good design(s) which may be of use.
   - [ ] Composable (returning fns?)
     - [ ] Arity (2 or many?)
   - [ ] Sensible
+  - [X] Independent
 - [ ] Implement them.
   - [ ] Meta
   - [ ] Path
