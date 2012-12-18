@@ -77,7 +77,37 @@
       (are [res] (= (meta res) (merge (meta a) (meta b)))
            r-res
            l-res
-           mmerge-res))))
+           mmerge-res)))
+
+  (let [concat- (fm concat)
+        concat-res (concat- ^{:a 1} [1 2 3]
+                            ^{:b 2} [nil nil nil]
+                            ^{:b 1, :c 3} [:D])
+
+        disj- (fm disj)
+        disj-res (disj- ^{:type :set} #{'(1 2) [3]}
+                        ^{:type :vec, :count 1} [3]
+                        (with-meta '(1 2) {:type :list, :count 2}))
+
+        largest (fm (partial max-key count))
+        largest-res (largest ^{:type :set, :mood :happy} #{:D :-D}
+                             ^{:type :vec, :state :empty} []
+                             (with-meta '(1 2 3 4 5 6)
+                               {:type :list, :contains :ints})
+                             ^{:type :map, :meta? false} {:a :b, :foo :bar})]
+    
+    (testing "that fm applies data-fn correctly for multiple arguments"
+      (are [actual expected] (= actual expected)
+           concat-res [1 2 3 nil nil nil :D]
+           disj-res #{}
+           largest-res '(1 2 3 4 5 6)))
+
+    (testing "that fm mergest metadata correctly for multiple arguments"
+      (are [actual expected] (= (meta actual) expected)
+           concat-res {:a 1, :b 1, :c 3}
+           disj-res {:type :list, :count 2}
+           largest-res {:type :map, :mood :happy, :state :empty,
+                        :contains :ints, :meta? false}))))
 
 (deftest test-meta-duo-apply
   (let [keep-right-left (duo-apply [merge-with right]
