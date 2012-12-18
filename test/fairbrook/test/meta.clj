@@ -148,3 +148,30 @@
                       [a b]) {:a 2}
            (duo-apply [concat] [merge-with left]
                       [a c]) {:a 1, :c :a}))))
+
+(deftest test-meta-mono-apply
+  (let [mwm (mono-apply [merge-with merge]
+                        [^{:a nil}  {:a 1, :three {1 2, 3 4}}
+                         ^{:b {1 2, 0 5}} {:c 3, :three {3 5, 6 7}}
+                         ^{:b {1 3, 2 1}, :c 50} {:foo :bar}])
+
+        merge-res (mono-apply [merge]
+                              [^{:foo :bar} {:two :one}
+                               ^{:foo nil, 4 3}  {[] [:-]}
+                               ^{+ -, * /} {8 10, [] #{:-}}])
+        merge-keep (mono-apply [merge-with left]
+                               [^{:foo :bar} {:two :one}
+                                ^{:foo nil, 4 3}  {[] [:-]}
+                                ^{+ -, * /} {8 10, [] #{:-}}])]
+    
+    (testing "that mono-apply returns correct data for multiple elements"
+      (are [actual expected] (= actual expected)
+           mwm {:a 1 :three {1 2, 3 5, 6 7} :c 3, :foo :bar}
+           merge-res {:two :one, [] #{:-}, 8 10}
+           merge-keep {:two :one, [] [:-], 8 10}))
+    
+    (testing "that mono-apply returns correct metadata for multiple elements"
+      (are [actual expected] (= (meta actual) expected)
+           mwm {:a nil, :b {0 5, 1 3, 2 1} :c 50}
+           merge-res {:foo nil, 4 3, + -, * /}
+           merge-keep {:foo :bar, 4 3, + -, * /}))))
