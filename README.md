@@ -1,4 +1,9 @@
+[![Build Status](https://travis-ci.org/hyPiRion/fairbrook.png)](https://travis-ci.org/hyPiRion/fairbrook)
+
 # fairbrook
+
+<img src="http://hypirion.com/imgs/fairbrook.png" alt="fairbrook logo"
+ title="fairbrook" align="right" />
 
 A Clojure library designed to make it easier to make more fine-grained map
 merges while being modular, simple, composable and other buzzwords you may know
@@ -14,6 +19,9 @@ changes will occur, and touching the library from outside is not recommended.
 FIXME
 
 ## License
+
+The fairbrook logo is a closeup from the image *Falls Of The Ogwen, Nant
+Frangon*, which is in the public domain because its copyright has expired.
 
 Copyright © 2012 Jean Niklas L'orange
 
