@@ -16,15 +16,32 @@
   [f]
   (ff f merge))
 
+(defn duo-apply-fn
+  "Returns a function which applies f with more-params to a list of elements,
+  and applies meta-f with meta-more-params to the metadata of the elements. Will
+  then attach the metadata to the data and return the result."
+  {:arglists '([[f & more-params] [meta-f & meta-more-params]])}
+  [[f & m] [mf & mm]]
+  (fn [elts]
+    (with-meta
+    (apply f (concat m elts))
+    (apply mf (concat mm (map meta elts))))))
+
+(defn mono-apply-fn
+  "Returns a function which applies f with more-params to a list of elements,
+  and then applies f with more-params to the metadata. Will then attach the
+  metadata to the data and return the result."
+  {:arglists '([f & more-params])}
+  [& args]
+  (duo-apply-fn args args))
+
 (defn duo-apply
   "Applies f with more-params and elements, and meta-f with meta-more-params and
   the metadata of the elements. Returns the result with the resulting metadata
   attached."
   {:arglists '([[f & more-params] [meta-f & meta-more-params] elements])}
-  [[f & m] [mf & mm] elts]
-  (with-meta
-    (apply f (concat m elts))
-    (apply mf (concat mm (map meta elts)))))
+  [f-args meta-args elts]
+  ((duo-apply-fn f-args meta-args) elts))
 
 (defn mono-apply
   "Applies f with more-params and elements on both the data and the metadata of
@@ -64,9 +81,9 @@
   "As merge-with, but will merge the metadata from each map as well. If a key
   occurs in more than one map or metamap, the mapping(s) from the
   latter (left-to-right) will be combined with the mapping in the result by
-  calling (f val-in-result val-in-latter)."
-  [f & maps]
-  (mono-reduce
-   (fn [m1 m2]
-     (merge-with f m1 m2))
+  calling ([meta-]f val-in-result val-in-latter)."
+  [f meta-f & maps]
+  (duo-reduce
+   (fn [m1 m2] (merge-with f m1 m2))
+   (fn [m1 m2] (merge-with meta-f m1 m2))
    maps))
