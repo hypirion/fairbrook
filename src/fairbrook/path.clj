@@ -1,4 +1,5 @@
-(ns fairbrook.path)
+(ns fairbrook.path
+  (:require [fairbrook.rule :as rule]))
 
 (defn- merge-with-path2
   "Utility function for merge-with-path"
@@ -37,7 +38,7 @@
   (let [merge-fn (fn merge-fn [path v1 v2]
                    (if-let [rule (get rules path)]
                      (rule v1 v2)
-                     (merge-with-path merge-fn path v1 v2)))]
+                     ((merge-with-path2 merge-fn path) v1 v2)))]
     (apply merge-with-path merge-fn maps)))
 
 (defn path-merge-with
@@ -46,8 +47,4 @@
   path, val-in-result and val-in-latter. As such, path-merge-with is not
   recursive, like path-merge."
   [rules f & maps]
-  (let [merge-fn (fn [path v1 v2]
-                   (if-let [rule (get rules path)]
-                     (rule v1 v2)
-                     (f path v1 v2)))]
-    (apply merge-with-path merge-fn maps)))
+  (apply merge-with-path (rule/rule-fn rules f) maps))
