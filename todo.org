@@ -1,15 +1,15 @@
 * Fairbrook 0.1.0
-- [-] Find good design(s) which may be of use.
-  - [ ] Composable (returning fns?)
-    - [ ] Arity (2 or many?)
-  - [ ] Sensible
+- [X] Find good design(s) which may be of use.
+  - [X] Composable 
+    - [X] Arity
+  - [X] Sensible (well, it SEEMS like a good idea currently)
   - [X] Independent
-- [ ] Implement them.
-  - [ ] Meta
-  - [ ] Path
-  - [ ] Key
-  - [ ] Multi
-  - [ ] Fns
-- [ ] Naming scheme
+- [X] Implement them.
+  - [X] Meta
+  - [X] Path
+  - [X] Key
+  - [X] Rule
+  - [X] Utils
+- [ ] Naming scheme (path.clj is destroying this one :/)
   - [ ] Succinct
   - [ ] Consistent
