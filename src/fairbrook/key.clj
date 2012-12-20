@@ -23,8 +23,8 @@
   otherwise work as merge-with where `f` is the merge function if a collision
   occurs."
   [rules f & maps]
-  (let [f' (fn [_ a b] (f a b))]
-    (apply merge-with-key (rule/rule-fn rules f') maps)))
+  (let [f* (fn [_ a b] (f a b))]
+    (apply merge-with-key (rule/rule-fn rules f*) maps)))
 
 (defn key-merge
   "A merge function which merges based on keys. If a key occurs in more than one
