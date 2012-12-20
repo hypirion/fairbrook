@@ -88,3 +88,38 @@
                    (f v1 v2)
                    (recur rst)))
                (default v1 v2))))))))
+
+(defn cond-fn
+  "Returns a function which takes two arguments, v1 and v2. Walks over every
+  test in order, and if any test returns a truthy value, calls its respective
+  f. If none of the tests returns a truthy value, default is called with v1 and
+  v2. The tests may sent as a vector of vectors, or a map if the order of the
+  tests doesn't matter. If default is not specified, v2 is returned."
+  {:arglists '([[[test f]+]] [[[test f]+] default])}
+  ([test-fs]
+     (cond-fn test-fs (fn [_ x] x)))
+  ([test-fs default]
+     (let [test-fs (seq test-fs)]
+       (fn [v1 v2]
+         (loop [[[test f] & r] test-fs] ;; Different fns depending on map/vec?
+           (cond (nil? test)  (default v1 v2)
+                 (test v1 v2) (f v1 v2)
+                 :otherwise   (recur r)))))))
+
+(defn cond3-fn
+  "Returns a function which takes three arguments, k, v1 and v2. Walks over
+  every test in order, and if any test returns a truthy value, calls its
+  respective f. If none of the tests returns a truthy value, default is called
+  with k, v1 and v2. The tests may sent as a vector of vectors, or a map if the
+  order of the tests doesn't matter. If default is not specified, v2 is
+  returned."
+  {:arglists '([[[test f]+]] [[[test f]+] default])}
+  ([test-fs]
+     (cond-fn test-fs (fn [_ x] x)))
+  ([test-fs default]
+     (let [test-fs (seq test-fs)]
+       (fn [k v1 v2]
+         (loop [[[test f] & r] test-fs] ;; Different fns depending on map/vec?
+           (cond (nil? test)  (default k v1 v2)
+                 (test k v1 v2) (f k v1 v2)
+                 :otherwise   (recur r)))))))
