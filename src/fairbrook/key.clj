@@ -15,6 +15,15 @@
                     (reduce merge-entry (or m1 {}) (seq m2)))]
     (reduce key-merge maps)))
 
+(defn merge-with-key-fn
+  "Returns a function taking two maps m1 and m2. When called, merges the two
+  maps, and if a key collision occurs, associates the key k with
+  (f k v1 v2) in the resulting map, where v1 and v2 are the values associated
+  with k in m1 and m2."
+  [f]
+  (fn [m1 m2]
+    (merge-with-key f m1 m2)))
+
 (defn key-merge-with
   "A merge function which handles key collisions based on the value of the
   key. If a key occurs in more than one map and the key is contained within
