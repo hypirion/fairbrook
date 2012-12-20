@@ -12,6 +12,22 @@
                             (assoc m k v))))]
       (reduce merge-entry (or m1 {}) (seq m2)))))
 
+(defn merge-from-root-fn ; Better (?) API for
+  "Returns a function merging two maps together \"from root\". If a key
+  collision occurs, associates the key k with (f [k] v1 v2) in the resulting
+  map, where v1 and v2 are the values associated with k in m1 and m2."
+  [f]
+  (merge-with-path2 f []))
+
+(defn merge-with-path-fn
+  "Returns a function taking three arguments: root, m1 and m2, which will merge
+  the maps m1 and m2. If a key collision occurs, associates the key k with
+  (f (conj root k) v1 v2) in the resulting map, where v1 and v2 are the values
+  associated with k in m1 and m2."
+  [f]
+  (fn [root m1 m2]
+    ((merge-with-path2 f root) m1 m2)))
+
 (defn merge-with-path
   "As merge-with, but adds the path to the function call: If a key occurs in
   more than one map, the mapping(s) will be combined by calling
