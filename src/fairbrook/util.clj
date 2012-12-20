@@ -42,3 +42,11 @@
   last form, etc."
   [& forms]
   `(->> ~@(reverse forms)))
+
+(defn right
+  "Returns the second argument."
+  [a b] b)
+
+(defn left
+  "Returns the first argument."
+  [a b] a)
