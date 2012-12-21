@@ -3,7 +3,8 @@
   (:require [fairbrook.path :as path]
             [fairbrook.rule :as rule]
             [fairbrook.util :as u]
-            [fairbrook.key :as key])
+            [fairbrook.key :as key]
+            [fairbrook.meta :as meta])
   (:import [clojure.lang IPersistentVector IPersistentSet]))
 
 (def ^:private union into) ; For clarity - 2-ary only
@@ -116,3 +117,89 @@
 
          [{:allergies #{:birch :cat}} {:allergies #{}} {:allergies #{:cat}}]
          #_=> {:allergies #{:birch :cat}})))
+
+
+(def ^:private meta-merge-fn
+  (u/<<-
+   (rule/rule-fn {[:user :repl-options :init] (partial list 'do),
+                  [:aliases] #(key/merge-with-key
+                                (fn [k v1 v2]
+                                  (println "The alias" k "is defined multiple"
+                                           "times: as" v1 "and as" v2)
+                                  (println "Keeps" v1 "and discards" v2)
+                                  v1)
+                                %1 %2)
+                  [:warn-on-reflection] #(or %1 %2)})
+   (u/fn3->fn2
+    (rule/cond-fn
+     [[(u/or-fn (comp :displace meta) (comp :replace meta))
+       (meta/ff u/right
+                (fn [left right] (merge (dissoc left :displace)
+                                       (dissoc right :replace))))]
+
+      [[(comp :reduce meta) u/_]
+       (meta/ff (fn [left right]
+                  (-> left meta :reduce
+                      (reduce left right)))
+                u/left)]
+
+      [[nil? u/_] u/right]
+      [[u/_ nil?] u/left]
+
+      [[set? set?] union]]))
+
+   (rule/cond3-fn
+    {(u/and-fn u/_ map? map?) (path/sub-merge-fn #'meta-merge-fn)})
+
+   (u/fn3->fn2
+    (rule/cond-fn
+     [[[coll? coll?]
+       (rule/cond-fn
+        {(u/or-fn (comp :prepend meta) (comp :prepend meta))
+         (meta/ff concat #(merge %1 (select-keys %2 [:displace])))}
+        concat)]
+
+      [#(= (class %1) (class %2)) u/right]]
+     (fn [left right]
+       (println left "and" right "have a type mismatch merging profiles.")
+       right)))))
+
+(def ^:private meta-merge (path/merge-from-root meta-merge-fn))
+
+
+(deftest test-lein-meta-merge-prototype
+  (testing "that the prototype works on base cases"
+    (are [maps expected] (= (reduce meta-merge maps) expected)
+
+         [{:foo [1 2 3]} {:foo [7 8 9]}]
+         #_=> {:foo '(1 2 3 7 8 9)}
+
+         [{:foo (with-meta [1 2 3] {:displace true})}
+          {:foo [7 8 9]}]
+         #_=> {:foo [7 8 9]}
+
+         [{:foo '[a b c]} {:foo (with-meta [:p :D :f] {:replace true})}]
+         #_=> {:foo [:p :D :f]}
+
+         [{:bar [1 2 3]} {:bar nil}]
+         #_=> {:bar [1 2 3]}
+
+         [{:bar nil} {:bar [7 8 9]}]
+         #_=> {:bar [7 8 9]}
+
+         [{:quux #{:a :b}} {:bar nil} {:quux #{1 2} :bar [2 3 4]}]
+         #_=> {:quux #{:a :b 1 2}, :bar [2 3 4]}
+
+         [{:a (with-meta #{1 2 3} {:reduce (constantly '?)})} {:a #{4 5 6}}]
+         #_=> {:a '?}
+
+         [{:a (with-meta [] {:reduce (constantly [])})} {:a [1 2]} {:a [3 4]}
+          {:a (with-meta 'replaced {:replace true})}]
+         #_=> {:a 'replaced}
+
+         [{:a (with-meta [] {:reduce (constantly [])})} {:a [1 2]} {:a [3 4]}
+          {:a (with-meta #{1 2 3} {:replace true})} {:a #{7 8 9}}]
+         #_=> {:a []} ; reduce isn't lost, :replace is though
+
+         [{:foo "We pick rightmost"} {:foo "as these are same class"}]
+         #_=> {:foo "as these are same class"})))
