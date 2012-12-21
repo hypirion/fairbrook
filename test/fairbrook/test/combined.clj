@@ -15,8 +15,7 @@
                 (u/fn3->fn2
                  (u/<<-
                   (rule/type-fn {IPersistentSet union, Number +})
-                  (rule/cond-fn [[#(and (vector? %)
-                                        (vector? %2)) #(map vector % %2)]])))
+                  (rule/cond-fn [[[vector? vector?] #(map vector % %2)]])))
                 (rule/rule-fn {:c u/left}))]
       (are [maps expected] (= (reduce (key/merge-with-key-fn m-fn) maps)
                               expected)
@@ -45,7 +44,7 @@
                 (rule/type2-fn {[IPersistentVector Number] conj
                                 [Number IPersistentVector] #(conj %2 %1)
                                 [IPersistentVector IPersistentVector] into})
-                (rule/cond-fn {#(and (odd? %) (odd? %2)) *})
+                (rule/cond-fn {[odd? odd?] *})
                 (rule/type-fn {Number +}))]
 
       (are [maps expected]  (= (reduce #(merge-with m-fn %1 %2) maps)

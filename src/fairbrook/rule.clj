@@ -89,17 +89,34 @@
                    (recur rst)))
                (default v1 v2))))))))
 
+(defn prepare-cond-seq
+  "Prepares the conditional sequence."
+  ^:private
+  [cases]
+  (let [prepare-case
+        (fn [tf]
+          (let [t (first tf), f (second tf)]
+            (if (vector? t)
+              (let [t1 (first t)
+                    t2 (second t)]
+                [(fn [v1 v2] (and (t1 v1) (t2 v2))) f])
+              tf)))]
+    (doall (map prepare-case cases))))
+
 (defn cond-fn
   "Returns a function which takes two arguments, v1 and v2. Walks over every
-  test in order, and if any test returns a truthy value, calls its respective
-  f. If none of the tests returns a truthy value, default is called with v1 and
-  v2. The tests may sent as a vector of vectors, or a map if the order of the
-  tests doesn't matter. If default is not specified, v2 is returned."
+  test in order: If test is a vector, will call the first element of the vector
+  with v1 and the second with v2. Otherwise calls test with v1 and v2.  If any
+  test (or BOTH calls if it is a vector) returns a truthy value, calls its
+  respective f with v1 and v2. If none of the tests returns a truthy value,
+  default is called with v1 and v2. The tests may be sent as a vector of
+  vectors, or a map if the order of the tests doesn't matter. If default is not
+  specified, v2 is returned."
   {:arglists '([[[test f]+]] [[[test f]+] default])}
   ([test-fs]
      (cond-fn test-fs (fn [_ x] x)))
   ([test-fs default]
-     (let [test-fs (seq test-fs)]
+     (let [test-fs (prepare-cond-seq test-fs)]
        (fn [v1 v2]
          (loop [[[test f] & r] test-fs] ;; Different fns depending on map/vec?
            (cond (nil? test)  (default v1 v2)
