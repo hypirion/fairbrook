@@ -124,9 +124,11 @@
    (rule/rule-fn {[:user :repl-options :init] (partial list 'do),
                   [:aliases] #(key/merge-with-key
                                 (fn [k v1 v2]
-                                  (println "The alias" k "is defined multiple"
-                                           "times: as" v1 "and as" v2)
-                                  (println "Keeps" v1 "and discards" v2)
+                                  (println "The alias" k
+                                           "is defined multiple times:\nas"
+                                           v1 "and as" v2)
+                                  (println "Will keep" v1 ","
+                                           v2 "is discarded")
                                   v1)
                                 %1 %2)
                   [:warn-on-reflection] #(or %1 %2)})
@@ -202,4 +204,69 @@
          #_=> {:a []} ; reduce isn't lost, :replace is though
 
          [{:foo "We pick rightmost"} {:foo "as these are same class"}]
-         #_=> {:foo "as these are same class"})))
+         #_=> {:foo "as these are same class"}))
+
+  (testing "that recursing with path works nicely"
+    (are [maps expected] (= (reduce meta-merge maps) expected)
+
+         [{:user {:repl-options
+                  {:init '(require 'clojure.pprint)}}}
+          {:user {:repl-options
+                  {:init '(println "take it easy, this works")}}}]
+         #_=>
+         {:user {:repl-options
+                 {:init '(do (require 'clojure.pprint)
+                             (println "take it easy, this works"))}}}
+
+         [{:warn-on-reflection true} {:warn-on-reflection false}]
+         #_=> {:warn-on-reflection true}
+
+         ;; path-rules are done BEFORE anything else. Even though this test does
+         ;; not make semantically sense, it's good to check that it is done
+         [{:warn-on-reflection (with-meta [] {:displace true})}
+          {:warn-on-reflection 'wont-see-this}]
+         #_=> {:warn-on-reflection []}
+
+         [{:warn-on-reflection (with-meta [] {:reduce (constantly '?)})}
+          {:warn-on-reflection '[yeah, we get it, this won't be shown]}]
+         #_=> {:warn-on-reflection []}))
+
+  (testing "that aliases will warn if attempted to be overwritten"
+    (are [maps expected-str]
+         (= (with-out-str (reduce meta-merge maps)) expected-str)
+
+         [{:aliases {"foo" "bar"}} {:aliases {"quux" "river"}}
+          {:aliases {"dangit" "hey"}}]
+         #_=> "" ; No collision.
+
+         [{:aliases {"foo" "bar"}} {:aliases {"foo" "baz"}}]
+#_=>
+"The alias foo is defined multiple times:
+as bar and as baz
+Will keep bar , baz is discarded\n"
+
+         [{:aliases {"a" "b"}} {:aliases {"a" "b"}} {:aliases {"a" "c"}}]
+#_=>
+"The alias a is defined multiple times:
+as b and as b
+Will keep b , b is discarded
+The alias a is defined multiple times:
+as b and as c
+Will keep b , c is discarded\n"
+
+         [{:aliases {"test" ["do" "midje," "test"]}}
+          {:aliases {"test" "midje", "b" "d"}} {:aliases {"b" "c"}}]
+#_=>
+"The alias test is defined multiple times:
+as [do midje, test] and as midje
+Will keep [do midje, test] , midje is discarded
+The alias b is defined multiple times:
+as d and as c
+Will keep d , c is discarded\n"
+
+         [{:aliases (with-meta {"a" :b} {:displace true})} {:aliases {"a" :t}}]
+         ;; metadata ignored within [:aliases]-merge
+#_=>
+"The alias a is defined multiple times:
+as :b and as :t
+Will keep :b , :t is discarded\n")))
