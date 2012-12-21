@@ -55,10 +55,26 @@
   "Returns true regardless of its input parameters."
   [& ignore] true)
 
+(defn and-fn
+  "Returns a function of n (2 or 3) arguments. Calls f1 on the first argument,
+  f2 on the second argument, etc. Will return true if all of the calls yields
+  true, otherwise false. Short-circuits, so f_i+1 will not be called if the call
+  by f_i is false."
+  ([f1 f2]
+     (fn [v1 v2]
+       (and (f1 v2) (f2 v2))))
+  ([f1 f2 f3]
+     (fn [v1 v2 v3]
+       (and (f1 v1) (f2 v2) (f3 v3)))))
+
 (defn or-fn
-  "Returns a function of two arguments, and calls f on the first argument and g
-  on the second. If any of them yield true, return true, otherwise
-  false. Short-circuits, so will not be called if f is true."
-  [f g]
-  (fn [v1 v2]
-    (or (f v1) (g v2))))
+  "Returns a function of n (2 or 3) arguments. Calls f1 on the first argument,
+  f2 on the second argument, etc. Will return true if any of the calls yields
+  true, otherwise false. Short-circuits, so f_i+1 will not be called if the call
+  by f_i is true."
+  ([f1 f2]
+      (fn [v1 v2]
+        (or (f1 v1) (f2 v2))))
+  ([f1 f2 f3]
+     (fn [v1 v2 v3]
+       (or (f1 v1) (f2 v2) (f3 v3)))))
