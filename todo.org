@@ -1,15 +1,26 @@
+* Fairbrook 0.2.0
+- [ ] Performance (reduce-kv?)
+- [ ] Stack usage
+- [ ] Codox
+
 * Fairbrook 0.1.0
 - [X] Find good design(s) which may be of use.
   - [X] Composable 
     - [X] Arity
   - [X] Sensible (well, it SEEMS like a good idea currently)
   - [X] Independent
-- [X] Implement them.
+- [-] Implement them.
   - [X] Meta
   - [X] Path
   - [X] Key
-  - [X] Rule
+  - [ ] Rule
+    - [ ] Change cond-fn and cond3-fn's functionality
   - [X] Utils
-- [ ] Naming scheme (path.clj is destroying this one :/)
-  - [ ] Succinct
-  - [ ] Consistent
+- [X] Naming scheme
+  - [X] Succinct
+  - [X] Consistent
+- [ ] Documentation
+  - [ ] Tests
+    Not for testing correctness now, but to figure out whether the
+    design is usable or not
+  - [ ] Tutorial
