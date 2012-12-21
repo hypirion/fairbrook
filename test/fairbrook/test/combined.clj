@@ -41,9 +41,9 @@
            #_=> {:c '#{1 3 5 a b c}}))
 
     (let [m-fn (u/<<-
-                (rule/type2-fn {[IPersistentVector Number] conj
-                                [Number IPersistentVector] #(conj %2 %1)
-                                [IPersistentVector IPersistentVector] into})
+                (rule/type-fn {[IPersistentVector Number] conj
+                               [Number IPersistentVector] #(conj %2 %1)
+                               [IPersistentVector IPersistentVector] into})
                 (rule/cond-fn {[odd? odd?] *})
                 (rule/type-fn {Number +}))]
 

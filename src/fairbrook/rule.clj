@@ -14,11 +14,46 @@
          (rule v1 v2)
          (default r v1 v2)))))
 
+(defn prepare-type-rules
+  ^:private
+  ([cases]
+     (let [prepare-case
+           (fn [tf]
+             (let [t (key tf), f (val tf)]
+               (if (vector? t)
+                 (let [t1 (first t), t2 (second t)]
+                   [(fn [c1 c2] (and (isa? c1 t1) (isa? c2 t2))) f])
+                 [(fn [c1 c2] (and (isa? c1 t) (isa? c2 t))) f])))]
+       (into {} (map prepare-case cases))))
+  ([cases h]
+     (let [prepare-case
+           (fn [tf]
+             (let [t (key tf), f (val tf)]
+               (if (vector? t)
+                 (let [t1 (first t), t2 (second t)]
+                   [(fn [c1 c2] (and (isa? h c1 t1) (isa? h c2 t2))) f])
+                 [(fn [c1 c2] (and (isa? h c1 t) (isa? h c2 t))) f])))]
+       (into {} (map prepare-case cases)))))
+
+(defn dispatch-type-fn
+  ^:private
+  [rules default]
+  (fn [v1 v2]
+    (let [c1 (class v1), c2 (class v2)]
+      (loop [rs rules]
+        (if (seq rs)
+          (let [r (first rs), rst (rest rs)
+                k (key r), f (val r)]
+            (if (k c1 c2)
+              (f v1 v2)
+              (recur rst)))
+          (default v1 v2))))))
+
 (defn type-fn
   "Returns a function which takes two arguments: v1 and v2. If there is one key
   r in rules such that the classes of v1 and v2 both `isa?` r, find the function
   f associated with r and return (f v1 v2). If there are multiple rules which
-  satisfies this condition, any of these rules may be used. If there are none,
+  satisfies this condition, any of these rules may be picked. If there are none,
   (default v1 v2) is returned, or v2 if not default is supplied. h must be a
   hierarchy, and defaults to the global hierarchy if not supplied."
   ;; Should be some note telling people that they should return the same type
@@ -27,67 +62,11 @@
   ([rules]
      (type-fn rules (fn [_ x] x)))
   ([rules default] ;; Q: Is there *no* way to fetch the global hierarchy?
-     (let [rules (seq rules)]
-       (fn [v1 v2]
-         (let [c1 (class v1), c2 (class v2)]
-           (loop [rs rules]
-             (if (seq rs)
-               (let [r (first rs), rst (rest rs)
-                     k (key r), f (val r)]
-                 (if (and (isa? c1 k) (isa? c2 k))
-                   (f v1 v2)
-                   (recur rst)))
-               (default v1 v2)))))))
+     (let [rules (prepare-type-rules rules)]
+       (dispatch-type-fn rules default)))
   ([rules default h]
-     (let [rules (seq rules)]
-       (fn [v1 v2]
-         (let [c1 (class v1), c2 (class v2)]
-           (loop [rs rules]
-             (if (seq rs)
-               (let [r (first rs), rst (rest rs)
-                     k (key r), f (val r)]
-                 (if (and (isa? h c1 k) (isa? h c2 k))
-                   (f v1 v2)
-                   (recur rst)))
-               (default v1 v2))))))))
-
-(defn type2-fn
-  "Returns a function which takes two arguments: v1 and v2. If there is one key
-  R = [r1 r2] in rules such that (isa? c1 r1 h) and (isa? c2 r2 h2) is
-  satisfied, find the function f associated with R and return (f v1 v2). If
-  there are multiple rules which satisfies this condition, any of these rules
-  may be used. If there are none, (default v1 v2) is returned, or v2 if not
-  default is supplied. h1 and h2 must be hierarchies, h1 defaults to the global
-  hierarchy if not supplied, and h2 defaults to h1 if not supplied."
-  ([rules]
-     (type2-fn rules (fn [_ x] x)))
-  ([rules default] ;; Q: Again, no way of fetching the global hierarchy?
-     (let [rules (seq rules)]
-       (fn [v1 v2]
-         (let [c1 (class v1), c2 (class v2)]
-           (loop [rs rules]
-             (if (seq rs)
-               (let [r (first rs), rst (rest rs)
-                     k (key r), k1 (first k), k2 (second k) f (val r)]
-                 (if (and (isa? c1 k1) (isa? c2 k2))
-                   (f v1 v2)
-                   (recur rst)))
-               (default v1 v2)))))))
-
-  ([rules default h1]
-     (type2-fn rules default h1 h1))
-  ([rules default h1 h2]
-     (let [rules (seq rules)]
-       (fn [v1 v2]
-         (let [c1 (class v1), c2 (class v2)]
-           (loop [rs rules]
-             (if (seq rs)
-               (let [r (first rs), rst (rest rs)
-                     k (key r), k1 (first k), k2 (second k) f (val r)]
-                 (if (and (isa? h1 c1 k1) (isa? h2 c2 k2))
-                   (f v1 v2)
-                   (recur rst)))
-               (default v1 v2))))))))
+     (let [rules (prepare-type-rules rules h)]
+       (dispatch-type-fn rules default))))
 
 (defn prepare-cond-seq
   "Prepares the conditional sequence."
@@ -109,9 +88,9 @@
   with v1 and the second with v2. Otherwise calls test with v1 and v2.  If any
   test (or BOTH calls if it is a vector) returns a truthy value, calls its
   respective f with v1 and v2. If none of the tests returns a truthy value,
-  default is called with v1 and v2. The tests may be sent as a vector of
-  vectors, or a map if the order of the tests doesn't matter. If default is not
-  specified, v2 is returned."
+  default is called with v1 and v2. If default is not specified, v2 is
+  returned. The tests may be sent as a vector of vectors, or a map if the order
+  of the tests doesn't matter."
   {:arglists '([[[test f]+]] [[[test f]+] default])}
   ([test-fs]
      (cond-fn test-fs (fn [_ x] x)))
