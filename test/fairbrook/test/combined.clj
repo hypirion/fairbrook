@@ -6,13 +6,15 @@
             [fairbrook.key :as key])
   (:import [clojure.lang IPersistentVector IPersistentSet]))
 
+(def ^:private union into) ; For clarity - 2-ary only
+
 (deftest test-combined-fns
   (testing "that combining different functions works properly"
     (let [m-fn (u/<<-
                 (rule/rule-fn {:a concat, :b *})
                 (u/fn3->fn2
                  (u/<<-
-                  (rule/type-fn {IPersistentSet into, Number +})
+                  (rule/type-fn {IPersistentSet union, Number +})
                   (rule/cond-fn [[#(and (vector? %)
                                         (vector? %2)) #(map vector % %2)]])))
                 (rule/rule-fn {:c u/left}))]
@@ -63,3 +65,55 @@
 
            (map (partial array-map :a) (range 10))
            #_=> {:a 4545}))))
+
+(def ^:private rec-fn
+  (u/<<-
+   (rule/rule-fn {[:dish :price] +,
+                  [:dish :name] #(str % " with " %2)})
+   (u/prep-args
+    [a b c] [(peek a) b c]
+    (u/<<-
+     (rule/rule-fn {:allergies union, :tip +})
+     (rule/cond3-fn {(fn [k & _] (= k :cheapest))
+                     #(min %2 %3)})))   ; Sorry, hard to find proper use cases
+                                        ; for cond3
+   (path/sub-merge-fn #'rec-fn)))
+
+(deftest test-recursive-fns
+  (testing "that path-sensitive merges are recursive and working"
+    (are [maps expected]
+         (= (reduce (path/merge-from-root rec-fn) maps)
+            expected)
+
+         [{:dish {:name "sandwich" :price 1}}
+          {:dish {:name "salami" :price 2}}]
+         #_=> {:dish {:name "sandwich with salami" :price 3}}
+
+         [{:dish {:name "pasta carbonara"
+                  :allergies #{:egg :lactose} :price 10}}
+          {:dish {:name "feta salad" :allergies #{:lactose} :price 5}}]
+         #_=> {:dish {:name "pasta carbonara with feta salad",
+                      :allergies #{:egg :lactose}, :price 15}}
+
+         [{:tip 10 :cheapest 10}
+          {:dish {:name "side bacon", :allergies #{:bacon}, :price 5}
+           :cheapest 5, :tip 2}
+          {:dish {:name "back bacon", :allergies #{:bacon}, :price 7}
+           :cheapest 7, :tip 4}]
+         #_=> {:tip 16, :cheapest 5,
+               :dish {:name "side bacon with back bacon", :allergies #{:bacon}
+                      :price 12}}
+
+         [{:dish {:name "peking duck" :price 40 :tip 10
+                  :types {:main-dish true}}}
+          {:dish {:name "spring onions and cucumber sticks" :price 20, :tip 4
+                  :types {:side-dish true}}}
+          {:dish {:name "Barolo", :price 40, :tip 10 :types {:wine true}}}]
+         #_=>
+         {:dish
+          {:price 100, :tip 24, :name,
+           "peking duck with spring onions and cucumber sticks with Barolo"
+           :types {:main-dish true, :side-dish true, :wine true}}}
+
+         [{:allergies #{:birch :cat}} {:allergies #{}} {:allergies #{:cat}}]
+         #_=> {:allergies #{:birch :cat}})))
