@@ -50,3 +50,15 @@
 (defn left
   "Returns the first argument."
   [a b] a)
+
+(defn _
+  "Returns true regardless of its input parameters."
+  [& ignore] true)
+
+(defn or-fn
+  "Returns a function of two arguments, and calls f on the first argument and g
+  on the second. If any of them yield true, return true, otherwise
+  false. Short-circuits, so will not be called if f is true."
+  [f g]
+  (fn [v1 v2]
+    (or (f v1) (g v2))))

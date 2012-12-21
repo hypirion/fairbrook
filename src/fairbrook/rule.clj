@@ -16,7 +16,7 @@
 
 (defn prepare-type-rules
   ^:private
-  ([cases]
+  ([cases] ;; again the darn hierarchy issue.
      (let [prepare-case
            (fn [tf]
              (let [t (key tf), f (val tf)]
