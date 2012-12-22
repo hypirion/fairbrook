@@ -22,11 +22,20 @@ currently offers the following:
      * Or three functions, in same fashion as the point two point above
 * Functions for easily keeping and/or merging metadata for values
 
-  (While not being essential for many, some projects may need it. Currently,
-  many, if not all, functions will destroy the metadata of one value if two
-  values are merged together.)
+  While not being essential for many, some projects may need it. Currently,
+  many—if not all—functions will destroy the metadata of one value if two
+  values are merged together.
 * Simple and easy composition of everything mentioned above
 
 In addition, the library is supported from 1.2 and up to the newest snapshot
 of Clojure available, and has no dependencies to anything but Clojure.
 
+### When to use Fairbrook
+
+While many project may at first sight have a need to do fine-grained map merges,
+it may often be unneccesary and might add an additional level of
+complexity. Before you use it, try and find some way around intricate
+merging. It is not because Fairbrook is a bad library or increases incidental
+complexity, but because you often have a better standpoint when looking at your
+problem from different angles. If you after that consider Fairbrook as a good
+solution, great!
