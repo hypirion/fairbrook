@@ -11,15 +11,15 @@ currently offers the following:
 * Merging maps based on:
   * What key has had a "collision"
   * The type of the values merged:
-    * Either by specifying the type both `isa?` element of
-	* Or specify for both values independently of the other
+     * Either by specifying the type both `isa?` element of
+     * Or specify for both values independently of the other
   * The *path* to the value - e.g. `[:a :b]` for `1` within `{:a {:b 1}}`
   * "Multimethod dispatch"
-    * One function taking both values as input
-	* Two functions, each taking one value as input (either `or`ed or `and`ed
-      together)
-	* One function, taking key/path and the values as input
-	* Or three functions, in same fashion as the point two point above
+     * One function taking both values as input
+     * Two functions, each taking one value as input (either `or`ed or `and`ed
+       together)
+     * One function, taking key/path and the values as input
+     * Or three functions, in same fashion as the point two point above
 * Functions for easily keeping and/or merging metadata for values
 
   (While not being essential for many, some projects may need it. Currently,

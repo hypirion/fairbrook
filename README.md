@@ -25,9 +25,7 @@ within your `project.clj`:
 [fairbrook "0.1.0"] ; (NB: not yet released)
 ```
 
-To get a better understanding of fairbrook, have a look at the [tutorial][].
-
-[tutorial]: "https://github.com/hyPiRion/fairbrook/blob/master/doc/tutorial.md"
+To get a better understanding of fairbrook, have a look at the [tutorial](https://github.com/hyPiRion/fairbrook/blob/master/doc/TUTORIAL.md).
 
 ## License
 
