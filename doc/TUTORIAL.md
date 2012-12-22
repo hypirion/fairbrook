@@ -39,3 +39,12 @@ merging. It is not because Fairbrook is a bad library or increases incidental
 complexity, but because you often have a better standpoint when looking at your
 problem from different angles. If you after that consider Fairbrook as a good
 solution, great!
+
+### What this tutorial covers
+
+This tutorial will cover every single function and macro within Fairbrook. Don't
+worry, there aren't that many, and they are very easy to understand
+conceptually. This tutorial will first explain how to use the functions
+independently, and will then go into detail about how can and were meant to be
+used together. Used alone, they can solve many common problems. Used together,
+they can solve more delicate merge tasks.
