@@ -73,12 +73,12 @@ using `user` or `bill`, but will later in the tutorial.)
 
 ```clj
 (ns luncher.database-stuff
-  (:require [fictive-time-db :as time]
+  (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]))
 
 (defn merge-fn
   [new old]
-  (cond (int? new)           (+ old new)
+  (cond (number? new)        (+ old new)
         (time/datetime? new) (time/latest old new)
 		:else old)) ; has currently no effect
 
@@ -99,7 +99,7 @@ it helps us any:
 ```clj
 ;; add this within the require: [fairbrook.rule :as rule]
 (def merge-fn
-  (rule/cond-fn [[(fn [new _] (int? new)) +]
+  (rule/cond-fn [[(fn [new _] (number? new)) +]
                  [(fn [new _] (time/datetime? new)) time/latest]
 				 [(fn [_ _] :else) (fn [_ old] old)]]))
 ```
@@ -112,7 +112,7 @@ us get to the basics first:
 therefore we have to change the `defn` into a `def`. `cond-fn` takes as first
 argument a vector of vectors, and every vector within the vector must have two
 elements: a *test* function and a *use* function. For example, in
-`[(fn [new _] (int? new)) +]`, `(fn [new _] (int? new))` is the *test* function,
+`[(fn [new _] (number? new)) +]`, `(fn [new _] (number? new))` is the *test* function,
 and `+` is the *use* function.
 
 Whenever `merge-fn` is called, it will walk through every pair in order and call
@@ -129,7 +129,7 @@ result:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[(fn [new _] (int? new)) +]
+  (rule/cond-fn [[(fn [new _] (number? new)) +]
                  [(fn [new _] (time/datetime? new)) time/latest]]))
 ```
 
@@ -146,7 +146,7 @@ versa, we can do this here:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn {(fn [new _] (int? new)) +,
+  (rule/cond-fn {(fn [new _] (number? new))        +,
                  (fn [new _] (time/datetime? new)) time/latest}))
 ```
 
@@ -161,7 +161,7 @@ this:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn {(u/and-fn int? (constantly true)) +,
+  (rule/cond-fn {(u/and-fn number? (constantly true))        +,
                  (u/or-fn time/datetime? (constantly false)) time/latest}))
 ```
 
@@ -179,7 +179,7 @@ us stand with the following snippet:
 ```clj
 ;; Add a refer like this: [fairbrook.util :as u :refer [_]]
 (def merge-fn
-  (rule/cond-fn {(u/and-fn int? _)           +,
+  (rule/cond-fn {(u/and-fn number? _)        +,
                  (u/and-fn time/datetime? _) time/latest}))
 ```
 
@@ -191,7 +191,7 @@ foo bar)`. As such, we finally end up with this merge function:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn {[int? _]           +,
+  (rule/cond-fn {[number? _]        +,
                  [time/datetime? _] time/latest}))
 ```
 
@@ -200,7 +200,7 @@ And if you compare it with this:
 ```clj
 (defn merge-fn
   [new old]
-  (cond (int? new)           (+ old new)
+  (cond (number? new)        (+ old new)
         (time/datetime? new) (time/latest old new)
 		:else old))
 ```
@@ -216,7 +216,7 @@ merge operation, and rather throw an error instead. This can be done this way:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn {[int? int?]           +,
+  (rule/cond-fn {[number? number?]               +,
                  [time/datetime? time/datetime?] time/latest}
    u/err-fn))
 ```
@@ -237,13 +237,13 @@ the following result:
 
 ```clj
 (ns luncher.database-stuff
-  (:require [fictive-time-db :as time]
-            [fictive-couchdb-lib :as db :refer [my-db]
+  (:require [fictive-time-lib :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]]
 			[fairbrook.rule :as rule]
 			[fairbrook.util :as u]))
 
 (def merge-fn
-  (rule/cond-fn {[int? int?]                     +,
+  (rule/cond-fn {[number? number?]               +,
                  [time/datetime? time/datetime?] time/latest}
    u/err-fn))
 
