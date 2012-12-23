@@ -44,12 +44,14 @@
   `(->> ~@(reverse forms)))
 
 (defn right
-  "Returns the second argument."
-  [a b] b)
+  "Returns the second value."
+  ([a b] b)
+  ([k a b] b))
 
 (defn left
-  "Returns the first argument."
-  [a b] a)
+  "Returns the first value."
+  ([a b] a)
+  ([k a b] a))
 
 (defn _
   "Returns true regardless of its input parameters."

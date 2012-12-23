@@ -111,7 +111,7 @@
   returned."
   {:arglists '([[[test f]+]] [[[test f]+] default])}
   ([test-fs]
-     (cond-fn test-fs (fn [_ x] x)))
+     (cond3-fn test-fs (fn [_ _ x] x)))
   ([test-fs default]
      (let [test-fs (seq test-fs)]
        (fn [k v1 v2]
