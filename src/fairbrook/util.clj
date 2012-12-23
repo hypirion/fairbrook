@@ -78,3 +78,8 @@
   ([f1 f2 f3]
      (fn [v1 v2 v3]
        (or (f1 v1) (f2 v2) (f3 v3)))))
+
+(defn err-fn
+  [& args]
+  (throw Exception. "Couldn't merge based on values:"
+         (apply str (interpose " " args))))
