@@ -5,8 +5,8 @@
 Fairbrook is a library for doing map merges when a normal `merge` or a
 `merge-with` doesn't suffice. While the phrase *"Fine-grained map manipulation
 for the masses."* is the library's description, that's partly an overstatement:
-The library only covers the "merge" part of map manipulation. The library
-currently offers the following:
+The library only covers the "merge" part of map manipulation. For now, Fairbrook
+is able to do the followin:
 
 * Merging maps based on:
   * What key has had a "collision"
@@ -32,13 +32,12 @@ of Clojure available, and has no dependencies to anything but Clojure.
 
 ### When to use Fairbrook
 
-While many project may at first sight have a need to do fine-grained map merges,
-it may often be unneccesary and might add an additional level of
+While many projects may at first sight have a need to do fine-grained map
+merges, it may often be unneccesary and might add an additional level of
 complexity. Before you use it, try and find some way around intricate
 merging. It is not because Fairbrook is a bad library or increases incidental
-complexity, but because you often have a better standpoint when looking at your
-problem from different angles. If you after that consider Fairbrook as a good
-solution, great!
+complexity, but it's good to know that it is the best solution for your problem
+before going with it.
 
 ### What this tutorial covers
 
@@ -46,18 +45,20 @@ This tutorial will cover every single function and macro within Fairbrook. Don't
 worry, there aren't that many, and they are very easy to understand
 conceptually. This tutorial will first explain how to use the functions
 independently, and will then go into detail about how they can and were meant to
-be used together. Used alone, they can solve many common problems. Used
+be used together. Used alone, they can solve many common merge problems. Used
 together, they can solve more delicate merge tasks.
 
 ## Functions in Fairbrook
 
 ### `cond-fn`
+
 At some point you may need to merge two maps in your Clojure application, where
 some keys may or may not be within the map. As such, the obvious solution is of
-course to do a `merge`, and perform a specific merge of the values which may
-contain different data. Say we for instance have an internal "lunch-tracker",
-because our office is nice and cover our lunch-related expenses. A worker just
-put in the price paid along with the bill in the system through some interface.
+course to do a `merge-with`, and perform a specific merge of the values which
+may contain different data. Say we for instance have an internal "lunch tracker"
+with Apache CouchDB as database, because our office is nice and cover our lunch
+related expenses. A worker just put in the price paid along with the bill in the
+system through some interface, and it is saved.
 
 At some time, the system gets three notifications about bills simultaneously,
 and delegates the work to three threads. For those not known to Apache CouchDB,
@@ -112,7 +113,7 @@ therefore we have to change the `defn` into a `def`. `cond-fn` takes as first
 argument a vector of vectors, and every vector within the vector must have two
 elements: a *test* function and a *use* function. For example, in
 `[(fn [new _] (int? new)) +]`, `(fn [new _] (int? new))` is the *test* function,
-and `+` is the *apply* function.
+and `+` is the *use* function.
 
 Whenever `merge-fn` is called, it will walk through every pair in order and call
 the test function with the two values it was given. If the test function returns
@@ -206,9 +207,11 @@ And if you compare it with this:
 
 I believe the former explains better what it is supposed to do.
 
-Our boss would like some more safety, since we may decide to add new values to
-the lunch document or decide to let `:total` be a map containing a total sum per
-person rather than being an int. As such, we'd avoid to default to a normal
+#### Optional arguments
+
+Our boss would like a more secure program, since we may decide to add new values
+to the lunch document or decide to let `:total` be a map containing a total sum
+per person rather than being an int. As such, we'd avoid to default to a normal
 merge operation, and rather throw an error instead. This can be done this way:
 
 ```clj
@@ -218,8 +221,37 @@ merge operation, and rather throw an error instead. This can be done this way:
    u/err-fn))
 ```
 
+`fairbrook.util/err-fn` is a function taking any arguments and throws a message
+saying that the merge didn't match any rules with the arguments given.
+
 We've now ensured that both values are ints before adding them, and we've also
 ensured that both dates are in fact dates, before finding the latest one. If
 none of the rules apply, the merge function will throw an error message telling
 us what values caused the exception to be thrown, but we will unfortunately not
 find out which key and which maps caused this error.
+
+#### Final result
+
+Changing from a normal "homebrewed" `merge-with` to Fairbrook, we end up with
+the following result:
+
+```clj
+(ns luncher.database-stuff
+  (:require [fictive-time-db :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]
+			[fairbrook.rule :as rule]
+			[fairbrook.util :as u]))
+
+(def merge-fn
+  (rule/cond-fn {[int? int?]                     +,
+                 [time/datetime? time/datetime?] time/latest}
+   u/err-fn))
+
+(defn add-bill [user price bill datetime]
+  (let [new-data {:total price, :last-updated datetime}]
+    (while (->> (db/get my-db :lunch-document)
+	            (merge-with merge-fn new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
