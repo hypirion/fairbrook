@@ -204,16 +204,7 @@ And if you compare it with this:
 		:else old))
 ```
 
-I sincerely believe the former explains better what it is supposed to do.
-
-`cond-fn` also takes an extra argument I've not yet talked about. As I commented
-earlier, if none of the rules return true, then the second value is
-returned. You can bypass this by adding in this second argument, which will be
-the default merge function if none of the rules are used. As such `(merge-with
-(cond-fn [] foo) bar baz)` would be the same as `(merge-with foo bar
-baz)`.
-
-More examples of `cond-fn` can be found in EXAMPLES.md (TODO).
+I believe the former explains better what it is supposed to do.
 
 Our boss would like some more safety, since we may decide to add new values to
 the lunch document or decide to let `:total` be a map containing a total sum per
