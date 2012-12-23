@@ -201,7 +201,7 @@ And if you compare it with this:
   [new old]
   (cond (int? new)           (+ old new)
         (time/datetime? new) (time/latest old new)
-		:else old)) ; has currently no effect
+		:else old))
 ```
 
 I sincerely believe the former explains better what it is supposed to do.
@@ -214,3 +214,21 @@ the default merge function if none of the rules are used. As such `(merge-with
 baz)`.
 
 More examples of `cond-fn` can be found in EXAMPLES.md (TODO).
+
+Our boss would like some more safety, since we may decide to add new values to
+the lunch document or decide to let `:total` be a map containing a total sum per
+person rather than being an int. As such, we'd avoid to default to a normal
+merge operation, and rather throw an error instead. This can be done this way:
+
+```clj
+(def merge-fn
+  (rule/cond-fn {[int? int?]           +,
+                 [time/datetime? time/datetime?] time/latest}
+   u/err-fn))
+```
+
+We've now ensured that both values are ints before adding them, and we've also
+ensured that both dates are in fact dates, before finding the latest one. If
+none of the rules apply, the merge function will throw an error message telling
+us what values caused the exception to be thrown, but we will unfortunately not
+find out which key and which maps caused this error.
