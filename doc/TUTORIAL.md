@@ -255,3 +255,77 @@ the following result:
 				(db/conflict?))))
 	:success)
 ```
+
+### `type-fn`
+
+Our new solution to the merge problem looks better than the previous version,
+but there's still issues we have to face: Why do we use a conditional function
+to dispatch on type? Indeed, if there is another solution for type dispatching,
+we should do so instead.
+
+And of course there is: the function `type-fn` is just like `cond-fn`, but takes
+types instead of functions. As such, changing the merge function over to
+`type-fn` is very straightforward:
+
+```clj
+(import 'lib.fictive.time.Datetime)
+
+(def merge-fn
+  (rule/type-fn {[Number Number] +,
+                 [Datetime Datetime] time/latest}
+   err-fn))
+```
+
+`type-fn` acts more or less in the same way as `cond-fn` does: You pass in a map
+containing a vector with two types and a use function if the values passed in
+has these types. Contrary to `cond-fn`, it does not accept a vector as input; it
+must have a map. And, as specified earlier, the order in which the tests will be
+ran is completely random. As such, relying on an ordering will cause problems.
+
+If the type of both values must match the same type, you may omit the vector
+form and just insert the type instead. For our case, this means that `merge-fn`
+can be even shorter, written like this:
+
+```clj
+(import 'lib.fictive.time.Datetime)
+
+(def merge-fn
+  (rule/type-fn {Number +, Datetime time/latest}
+   err-fn))
+```
+
+Now we're getting short and succinct.
+
+#### Own hierarchies (can be skipped)
+
+In some cases, extending the global hierarchy may be needed. There's no magic
+going on, you can do it exactly the same way you're used to: Use a keyword with
+the namespace attached through the `::keyword` notation, and you're okay.
+
+```clj
+(derive Number ::number)
+(derive Datetime ::datetime)
+
+(def merge-fn
+  (rule/type-fn {::number +, ::date time/latest}
+   err-fn))
+```
+
+In extremely rare cases, you may want to use your own hierarchy. This is an
+example of doing that:
+
+```clj
+(def my-hierarchy
+  (-> (make-hierarchy)
+      (derive Number :number)
+	  (derive Datetime :datetime)))
+
+(def merge-fn
+  (rule/type-fn {:number +, :date time/latest}
+   err-fn
+   my-hierarchy))
+```
+
+However, using your own hierarchy should be used sparsely, as it makes it
+difficult to compose `type-fn` with other rules. Use `::keywords` whenever
+possible.
