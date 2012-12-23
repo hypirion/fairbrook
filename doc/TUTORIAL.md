@@ -273,7 +273,7 @@ types instead of functions. As such, changing the merge function over to
 (def merge-fn
   (rule/type-fn {[Number Number] +,
                  [Datetime Datetime] time/latest}
-   err-fn))
+   u/err-fn))
 ```
 
 `type-fn` acts more or less in the same way as `cond-fn` does: You pass in a map
@@ -291,12 +291,12 @@ can be even shorter, written like this:
 
 (def merge-fn
   (rule/type-fn {Number +, Datetime time/latest}
-   err-fn))
+   u/err-fn))
 ```
 
 Now we're getting short and succinct.
 
-#### Own hierarchies (can be skipped)
+#### Own hierarchies (can be skipped on first read)
 
 In some cases, extending the global hierarchy may be needed. There's no magic
 going on, you can do it exactly the same way you're used to: Use a keyword with
@@ -308,7 +308,7 @@ the namespace attached through the `::keyword` notation, and you're okay.
 
 (def merge-fn
   (rule/type-fn {::number +, ::date time/latest}
-   err-fn))
+   u/err-fn))
 ```
 
 In extremely rare cases, you may want to use your own hierarchy. This is an
@@ -322,10 +322,153 @@ example of doing that:
 
 (def merge-fn
   (rule/type-fn {:number +, :date time/latest}
-   err-fn
+   u/err-fn
    my-hierarchy))
 ```
 
 However, using your own hierarchy should be used sparsely, as it makes it
 difficult to compose `type-fn` with other rules. Use `::keywords` whenever
 possible.
+
+### Merging with keys
+
+Using `cond-fn` or `type-fn` is fine as long as all the keys with these
+properties behave in the same way. If every pair of numbers should be added or
+every pair collections concatenated, this is the correct way to go. However,
+real life is seldom like that, and most of the times we should do merging based
+on what exact key we should merge on instead.
+
+Our boss would now like to keep track of the highest bill ever received as
+well. `cond-fn` and `type-fn` are unable handle this, as both `:total` and
+`:highest` are of the same type.
+
+```clj
+(ns luncher.database-stuff
+  (:require [fictive-time-lib :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]]
+			[fairbrook.rule :as rule]
+			[fairbrook.util :as u])
+  (:import [lib.fictive.time Datetime]))
+
+(def merge-fn
+  (rule/type-fn {Number +, Datetime time/latest}
+   u/err-fn))
+
+(defn add-bill [user price bill datetime]
+  (let [new-data {:total price, :last-updated datetime}]
+    (while (->> (db/get my-db :lunch-document)
+	            (merge-with merge-fn new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
+
+In our current program, as shown above, we use the normal `merge-with`
+function. The problem with `merge-with` is that it doesn't give us the key which
+has a collision. Fairbrook solves this issue by implementing a function named
+`fairbrook.key/merge-with-key`, which will give us the key as well whenever a
+collision occurs.
+
+However, there are some other functions available here which we will have a look
+at before using `merge-with-key` directly: `fairbrook.key/key-merge` and
+`fairbrook.key/key-merge-with`.
+
+`key-merge` takes in a map of keys which are associated with a function as well
+as some maps to perform the key merge on, and will dispatch based on key. If no
+key is matched, then the rightmost value will be picked. `key-merge-with` works
+like `key-merge`, but requires a default function taking the two values which
+has collided.
+
+For our use-case, we could use `key-merge` like this:
+
+```clj
+(defn merge-bills
+  [new-data lunch-doc]
+  (key/key-merge {:total +, :highest max, :last-updated time/latest}
+	  new-data lunch-doc))
+
+(defn add-bill [user price bill datetime]
+  (let [new-data {:total price, :highest price, :last-updated datetime}]
+    (while (->> (db/get my-db :lunch-document)
+	            (merge-bills new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
+
+And we could use `key-merge-with` like this:
+
+```clj
+(defn merge-bills
+  [new-data lunch-doc]
+  (key/key-merge-with {:total +, :highest max, :last-updated time/latest}
+    u/err-fn, new-data lunch-doc))
+```
+
+Where `u/err-fn` would be our merge function if neither `:total`, `:highest` or
+`:last-updated` had a collision and had to be merged.
+
+`key-merge` and `key-merge-with` are nice additions if you only need to merge on
+keys. This fit our current need nicely, but again, if we need to extend the
+merging process to something more complicated, we're out of luck. This is where
+`merge-with-key` comes into play: `merge-with-key` works exactly like
+`merge-with`, but will give the key to the function invoked as well whenever a
+collision occurs. For instance, `(merge-with-key (fn [k v1 v2] (vector k v1 v2))
+{:a 1} {:a 2})` will return `{:a [:a 1 2]}`.
+
+That being said, creating functions like `(fn [k v1 v2] ...)` is a bit ugly, and
+most use the key to determine which function to use on the values. It's very
+rare that the key itself has to be included as result value.
+
+With that in mind, `fairbrook.rule/rule-fn` will solve the problem of
+ours. `rule-fn` takes a map and an optional default function, just like
+`cond-fn` and `type-fn` does. However, `rule-fn` returns a function which takes
+three arguments: If the first argument is within the map, it will then call the
+associated value with the second and third argument. If the first argument isn't
+within the map, `(default second third)` will be called if given. If not, the
+third argument will be returned.
+
+This rather technical description isn't that much helpful without an example of
+this in use:
+
+```clj
+(def func
+  (rule/rule-fn {:a +, :b *, :c -}))
+
+(func :a 3 2) #_=> 5
+(func :b 3 2) #_=> 6
+(func :c 3 2) #_=> 1
+(func :d 3 2) #_=> 2
+```
+
+As such, `merge-with-key` and `rule-fn` is like bread and butter: They
+complement each other nicely. You may wonder why it isn't called `key-fn`
+instead of `rule-fn`. This is because there is in fact another function which
+fits just as nicely with `rule-fn` as `merge-with-key`. We'll have a look at
+that one later on.
+
+If we now decide to use `merge-with-key` and implement the function as intended,
+we end up with the following code:
+
+```clj
+(ns luncher.database-stuff
+  (:require [fictive-time-lib :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]]
+			[fairbrook.key :as key]
+			[fairbrook.rule :as rule]
+			[fairbrook.util :as u]))
+
+(def merge-fn
+  (rule/rule-fn {:total +, :highest max, :last-updated time/latest}
+   u/err-fn))
+
+(defn add-bill [user price bill datetime]
+  (let [new-data {:total price, :highest price, :last-updated datetime}]
+    (while (->> (db/get my-db :lunch-document)
+	            (key/merge-with-key merge-fn new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
+
+This is certainly less verbose than implementing the whole deal yourself!
