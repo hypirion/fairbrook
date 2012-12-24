@@ -472,3 +472,53 @@ we end up with the following code:
 ```
 
 This is certainly less verbose than implementing the whole deal yourself!
+
+### Merging nested maps
+
+We have until now only dealt with single leveled map merging: We are only
+merging maps together, and we can decide what function to use based on key, type
+or some conditional. We've not had the need to merge nested maps yet, but of
+course this is an issue one could end up in in the real world.
+
+... coincidentally, our boss want us to do this as well: He now wants us to put
+bills under each user to get better control of how much each person uses, stored
+in a set. How do we do this with Fairbrook? One way would be to use
+`merge-with-key` and then have multiple different `rule-fn`s nested within
+eachother, using a function named `fairbrook.key/merge-with-key-fn`. However,
+that would turn both verbose and ugly pretty fast.
+
+A better solution would be to utilize `fairbrook.path`, which contain functions
+for creating recursive merging within maps without losing your
+head. `fairbrook.path/path-merge` can bootstrap recursive path merging, given
+you know the *path* to every possible key collision up front. A *path* is a
+sequence of keys, which shows the path to the value we're looking for in a
+nested structure: It's the vectors you pass to `get-in`, `assoc-in` and
+`update-in`.
+
+`path-merge` works somewhat like `key-merge`, but with paths instead. If a
+collision occurs and the path is contained within the rule map, the function
+associated with the path will be invoked with the values clashing. Unlike
+`key-merge`, `path-merge` recursively merges keys if there are no rule for them,
+and continues. As such, if there are collisions of non-maps and they are not
+within the rule map, you'll crash. For our case, that is currently not a
+problem, so let's go with it:
+
+```clj
+(ns luncher.database-stuff
+  (:require [fictive-time-lib :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]]
+			[fairbrook.path :as path]
+			[fairbrook.rule :as rule]
+			[fairbrook.util :as u]))
+
+(defn add-bill [user price bill datetime]
+  (let [path-rules {[:total] +, [:highest] max, [:last-updated] time/last,
+                    [:bills user] clojure.set/union}
+        new-data {:total price, :highest price, :last-updated datetime,
+		          :bills {user #{bill}}]
+    (while (->> (db/get my-db :lunch-document)
+	            (path/path-merge path-rules new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
