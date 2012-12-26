@@ -522,3 +522,123 @@ is currently not a problem, so let's go with it:
 				(db/conflict?))))
 	:success)
 ```
+
+Note that `path-rules` must be defined within `add-bill`, as `user` is not known
+compile-time.
+
+There is a slight problem with the current approach however: `path-merge` does
+not take any optional argument, and as such, `err-fn` cannot be chosen as
+default action. One may assume that `fairbrook.path/merge-with-path` is the
+right function to use, as we did use `merge-with-key` for more fine-grained
+control of `key-merge`. This is true, but using `merge-with-path` requires
+recursion, which, when using `def` is slightly tricky. We'll get back to that
+issue, but let us first see what `merge-with-path` does:
+
+`merge-with-path` takes the merge function and the maps to merge. It is
+identical to `merge-with-key`, except that instead of giving the specific *key*,
+it will give the current *path* (being `[k]` instead of `k`). As such, it's very
+useless unless you have some function which gives you the possibility to merge
+stuff—another function is needed to perform such a task. That other function
+is `sub-merge-fn`, which takes the function to perform. The function it returns
+takes three arguments: a path p and two maps. It will then merge the maps and,
+if a collision occurs, call f with `(conj collision-key p)` and the values
+colliding. The trick now is to send it the `rule-fn` which has this
+`sub-merge-fn` as its second argument—recursion. A simple `def` merge function
+may for the unexperienced look like this:
+
+```clj
+(declare merge-fn)
+
+(def merge-fn
+  (rule/rule-fn {[:a :b] +, [:b] -}
+    (path/sub-merge-fn merge-fn))) ; incorrect
+```
+
+However, the `merge-fn` called to `sub-merge-fn` is the unbound version of
+`merge-fn`, leading to an IllegalStateException. The solution for this is to
+just sharp-quote it, until Rich introduces some sort of dataflow variable in
+Clojure:
+
+```clj
+(def merge-fn
+  (rule/rule-fn {[:a :b] +, [:b] -}
+    (path/sub-merge-fn #'merge-fn))) ; correct
+```
+
+For rules designed at runtime, more tricks has to be done. One may think that
+sharp-quoting the assigned variable may work, but unfortunately not—it will 
+only result in a RuntimeException because the var is unresolvable. So this will
+not work:
+
+```clj
+(let [g [:a :b]
+      merge-fn (rule/rule-fn {g +, [:b] -}
+                 (path/sub-merge-fn #'merge-fn))] ; incorrect
+  (path/merge-with-path merge-fn {:a {:b 2} :b 5} {:a {:b 3} :b 1}))
+```
+
+The solution is to wrap the merge function within a named anonymous function and
+call it like so:
+
+```clj
+(let [g [:a :b]
+      merge-fn (fn m-fn [p v1 v2] 
+                 ((rule/rule-fn {g +, [:b] -}
+                    (path/sub-merge-fn m-fn))
+				  p v1 v2))] ; correct
+  (path/merge-with-path merge-fn {:a {:b 2} :b 5} {:a {:b 3} :b 1}))
+```
+
+And, since this is a bit ugly, it's common to wrap it within a `defn` with an
+appropriate name:
+
+```clj
+(defn make-merge-fn [rules]
+  (fn m-fn [p v1 v2]
+    ((rule/rule-fn rules
+                  (path/sub-merge-fn m-fn))
+				  p v1 v2)))
+
+(let [g [:a :b]
+      merge-fn (make-merge-fn {g +, [:b] -})] ; more evident
+  (path/merge-with-path merge-fn {:a {:b 2} :b 5} {:a {:b 3} :b 1}))
+```
+
+It's not a pretty solution when done at runtime, but work on making it prettier
+is ongoing, and a solution is probably coming during `0.2.0` through a
+`path-merge-with`.
+
+Going from the more elegant `path-merge`, the solution to our original problem
+turns into this:
+
+```clj
+(ns luncher.database-stuff
+  (:require [fictive-time-lib :as time]
+            [fictive-couchdb-lib :as db :refer [my-db]]
+			[fairbrook.path :as path]
+			[fairbrook.rule :as rule]
+			[fairbrook.util :as u]))
+
+(defn make-mfn
+  [rules]
+  (fn m-fn [p v1 v2]
+    ((rule/rule-fn rules
+                  (path/sub-merge-fn m-fn))
+				  p v1 v2)))
+
+(defn add-bill [user price bill datetime]
+  (let [path-rules {[:total] +, [:highest] max, [:last-updated] time/last,
+                    [:bills user] clojure.set/union}
+        new-data {:total price, :highest price, :last-updated datetime,
+		          :bills {user #{bill}}
+	    m-fn (make-mfn path-rules)]
+    (while (->> (db/get my-db :lunch-document)
+	            (path/merge-with-path m-fn new-data)
+				(db/put! my-db)
+				(db/conflict?))))
+	:success)
+```
+
+And we've currently just replaced `path-merge` with `merge-with-path`, not added
+`err-fn` as a default function when attempting to merge non-paths. Fortunately,
+the remainder is not as ugly and can be easily understood.
