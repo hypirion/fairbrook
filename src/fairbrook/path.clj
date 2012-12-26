@@ -15,7 +15,8 @@
                                (assoc m k v))))]
          (reduce merge-entry (or m1 {}) (seq m2))))))
 
-(defn merge-from-root
+(defn merge-from-root ;; Maybe kill this one? Better to just have
+                      ;; merge-with-path-fn available? idk.
   "Returns a function merging two maps together \"from root\". If a key
   collision occurs, associates the key k with (f [k] v1 v2) in the resulting
   map, where v1 and v2 are the values associated with k in m1 and m2."
@@ -62,10 +63,11 @@
                      ((merge-with-path-fn path merge-fn) v1 v2)))]
     (reduce (merge-from-root merge-fn) maps)))
 
-(defn path-merge-with
-  "As path-merge, but takes a default merge function `f` if the path is not
+(comment
+  (defn path-merge-with
+    "As path-merge, but takes a default merge function `f` if the path is not
   within `rules` and a collision has occured. `f` takes three arguments: The
   path, val-in-result and val-in-latter. As such, path-merge-with is not
   recursive, like path-merge."
-  [rules f & maps]
-  (reduce (merge-from-root (rule/rule-fn rules f)) maps))
+    [rules f & maps]
+    (reduce (merge-from-root (rule/rule-fn rules f)) maps)))
