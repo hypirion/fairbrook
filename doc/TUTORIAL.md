@@ -498,10 +498,10 @@ nested structure: It's the vectors you pass to `get-in`, `assoc-in` and
 `path-merge` works somewhat like `key-merge`, but with paths instead. If a
 collision occurs and the path is contained within the rule map, the function
 associated with the path will be invoked with the values clashing. Unlike
-`key-merge`, `path-merge` recursively merges keys if there are no rule for them,
-and continues. As such, if there are collisions of non-maps and they are not
-within the rule map, you'll crash. For our case, that is currently not a
-problem, so let's go with it:
+`key-merge`, `path-merge` recursively merges values if the path is a subpath,
+and continues. Having to merge paths neither being subpaths nor paths will lead
+to an undefined result (most likely ending in an exception). For our case, that
+is currently not a problem, so let's go with it:
 
 ```clj
 (ns luncher.database-stuff

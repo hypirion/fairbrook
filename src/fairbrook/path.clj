@@ -42,14 +42,16 @@
   (reduce (merge-from-root f) maps))
 
 (defn path-merge
-  "A deeper key-merge. If a key occurs in more than one map and the path is NOT
-  contained within `rules`, the result is recursively merged. If the path is
-  contained within `rules`, the mapping(s) from the latter will be combined with
-  the mapping in the result by calling
-  ((get rules path) val-in-result val-in-latter).
+  "A deeper key-merge. If a key occurs in more than one map and the path is a
+  subpath contained within `rules`, the result is recursively merged. If the
+  path is contained within `rules`, the mapping(s) from the latter will be
+  combined with the mapping in the result by calling
+  ((get rules path) val-in-result val-in-latter). If the path is neither a path
+  nor a subpath contained within `rules`, the result is undefined.
 
   A path is the vector of keys pointing to a value in a nested map, such
-  that (get-in map path) refers to the value path is associated with.
+  that (get-in map path) refers to the value path is associated with. A subpath
+  is a path with one or more elements removed at the end.
 
   As multiple keys within maps will be recursively merged, this function will
   throw an error if `merge` cannot be applied on them."
