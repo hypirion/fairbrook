@@ -26,24 +26,29 @@
          [{:a {:b 10}} {:a {:b 20}}]
          #_=> {:a {:b 20}}))
 
-  (testing "that path-merge will crash when trying to merge non-maps"
-    (are [rules maps]
-         (thrown? Exception (apply path-merge rules maps))
+  (testing "that path-merge picks right value when not recursing"
+    (are [rules maps expected]
+         (= (apply path-merge rules maps) expected)
 
          {[:a] *}
          [{:b {:c 10}} {:b {:c :d}}]
+         #_=> {:b {:c :d}}
 
          {[:a :b] concat}
-         [{:a {:b [1 2 3]}} {:a {:b [4 5 6]}} {:a :foo}]
+         [{:a {:b [1 2 3], :c 1}} {:a {:b [4 5 6]}} {:a {:c 2}}]
+         #_=> {:a {:b [1 2 3 4 5 6], :c 2}}
 
          {[3 4 5] +}
          [{3 {4 {5 6}} :b 10} {3 {4 {5 7}} :b 90}]
+         #_=> {3 {4 {5 13}} :b 90}
 
          {[0 1 2] into}
          [{:r 10} {0 {1 {2 []}}} {0 {2 {3 10} 1 {2 [10]}}} {:r {:g {:f 10}}}]
+         #_=> {:r {:g {:f 10}}, 0 {1 {2 [10]}, 2 {3 10}}}
 
          {}
-         [{1 0} {1 0}])))
+         [{1 0} {1 0}]
+         #_=> {1 0})))
 
 (comment
   ;; This is why we don't do test-driven development guys.
