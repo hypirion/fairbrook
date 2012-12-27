@@ -102,6 +102,19 @@
                  (test v1 v2) (f v1 v2)
                  :otherwise   (recur r)))))))
 
+(defn prepare-cond3-seq
+  "Prepares the 3-arity conditional sequence."
+  ^:private
+  [cases]
+  (let [prepare-case
+        (fn [tf]
+          (let [t (first tf), f (second tf)]
+            (if (vector? t)
+              (let [[tk t1 t2] t]
+                [(fn [k v1 v2] (and (tk k) (t1 v1) (t2 v2))) f])
+              tf)))]
+    (doall (map prepare-case cases))))
+
 (defn cond3-fn
   "Returns a function which takes three arguments, k, v1 and v2. Walks over
   every test in order, and if any test returns a truthy value, calls its
@@ -113,7 +126,7 @@
   ([test-fs]
      (cond3-fn test-fs (fn [_ _ x] x)))
   ([test-fs default]
-     (let [test-fs (seq test-fs)]
+     (let [test-fs (prepare-cond3-seq test-fs)]
        (fn [k v1 v2]
          (loop [[[test f] & r] test-fs] ;; Different fns depending on map/vec?
            (cond (nil? test)  (default k v1 v2)
