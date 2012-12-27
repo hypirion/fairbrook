@@ -499,9 +499,11 @@ nested structure: It's the vectors you pass to `get-in`, `assoc-in` and
 collision occurs and the path is contained within the rule map, the function
 associated with the path will be invoked with the values clashing. Unlike
 `key-merge`, `path-merge` recursively merges values if the path is a subpath,
-and continues. Having to merge paths neither being subpaths nor paths will lead
-to an undefined result (most likely ending in an exception). For our case, that
-is currently not a problem, so let's go with it:
+and continues. If it has to merge paths neither being subpaths nor paths will
+pick the left value and continue on.
+
+The code below with `path-merge` is more or less the same as the one with
+`key-merge`, but with square brackets wrapped around and the new case added:
 
 ```clj
 (ns luncher.database-stuff
@@ -526,25 +528,42 @@ is currently not a problem, so let's go with it:
 Note that `path-rules` must be defined within `add-bill`, as `user` is not known
 compile-time.
 
-There is a slight problem with the current approach however: `path-merge` does
+There is a slight problem with using `path-merge` however: `path-merge` does
 not take any optional argument, and as such, `err-fn` cannot be chosen as
-default action. One may assume that `fairbrook.path/merge-with-path` is the
-right function to use, as we did use `merge-with-key` for more fine-grained
-control of `key-merge`. This is true, but using `merge-with-path` requires
-recursion, which, when using `def` is slightly tricky. We'll get back to that
-issue, but let us first see what `merge-with-path` does:
+default action. Of course, `fairbrook.path/path-merge-with` is the solution,
+which takes an optional argument. The result is that we just change this line:
 
-`merge-with-path` takes the merge function and the maps to merge. It is
-identical to `merge-with-key`, except that instead of giving the specific *key*,
-it will give the current *path* (being `[k]` instead of `k`). As such, it's very
-useless unless you have some function which gives you the possibility to merge
-stuff—another function is needed to perform such a task. That other function
-is `sub-merge-fn`, which takes the function to perform. The function it returns
-takes three arguments: a path p and two maps. It will then merge the maps and,
-if a collision occurs, call f with `(conj collision-key p)` and the values
-colliding. The trick now is to send it the `rule-fn` which has this
-`sub-merge-fn` as its second argument—recursion. A simple `def` merge function
-may for the unexperienced look like this:
+```clj
+	            (path/path-merge path-rules new-data)
+```
+
+into this:
+
+```clj
+	            (path/path-merge path-rules u/err-fn new-data)
+```
+
+And now, our solution is succinct and our boss is happy. What more could be ask
+for?
+
+#### More control through `merge-with-path`
+
+This part is not needed to understand easy chaining, but if there is a need for
+more complex and recursive merges, this is worthwhile reading as this is the
+basis for it.
+
+If we need more control of things, `fairbrook.path/merge-with-path` is the
+appropriate tool. `merge-with-path` takes the merge function and the maps to
+merge. It is identical to `merge-with-key`, except that instead of giving the
+specific *key*, it will give the current *path* (being `[k]` instead of `k`). As
+such, it's very useless unless you have some function which gives you the
+possibility to merge stuff—another function is needed to perform such a
+task. That other function is `fairbrook.path/sub-merge-fn`, which takes the
+function to perform. The function it returns takes three arguments: a path p and
+two maps. It will then merge the maps and, if a collision occurs, call f with
+`(conj collision-key p)` and the values colliding. The trick now is to send it
+the `rule-fn` which has this `sub-merge-fn` as its second argument—recursion. A
+simple `def` merge function may for the unexperienced look like this:
 
 ```clj
 (declare merge-fn)
@@ -604,12 +623,12 @@ appropriate name:
   (path/merge-with-path merge-fn {:a {:b 2} :b 5} {:a {:b 3} :b 1}))
 ```
 
-It's not a pretty solution when done at runtime, but work on making it prettier
-is ongoing, and a solution is probably coming during `0.2.0` through a
-`path-merge-with`.
+It's not a pretty solution when done at runtime, but when combining and
+"chaining" rules, it turns more composable than having a special function doing
+things for you. (It is also not as horrible to read as one may expect.)
 
-Going from the more elegant `path-merge`, the solution to our original problem
-turns into this:
+Going from the more elegant `path-merge-with`, the solution to our original
+problem turns into this:
 
 ```clj
 (ns luncher.database-stuff
@@ -639,6 +658,4 @@ turns into this:
 	:success)
 ```
 
-And we've currently just replaced `path-merge` with `merge-with-path`, not added
-`err-fn` as a default function when attempting to merge non-paths. Fortunately,
-the remainder is not as ugly and can be easily understood.
+Which essentially does the same thing as the `path-merge-with`.
