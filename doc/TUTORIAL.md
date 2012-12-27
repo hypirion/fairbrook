@@ -80,15 +80,15 @@ using `user` or `bill`, but will later in the tutorial.)
   [new old]
   (cond (number? new)        (+ old new)
         (time/datetime? new) (time/latest old new)
-		:else old)) ; has currently no effect
+        :else old)) ; has currently no effect
 
 (defn add-bill [user price bill datetime]
   (let [new-data {:total price, :last-updated datetime}]
     (while (->> (db/get my-db :lunch-document)
-	            (merge-with merge-fn new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (merge-with merge-fn new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 It's neither hairy nor problematic at this point, but the `cond` within
@@ -101,7 +101,7 @@ it helps us any:
 (def merge-fn
   (rule/cond-fn [[(fn [new _] (number? new)) +]
                  [(fn [new _] (time/datetime? new)) time/latest]
-				 [(fn [_ _] :else) (fn [_ old] old)]]))
+                 [(fn [_ _] :else) (fn [_ old] old)]]))
 ```
 
 As of right now, this looks even worse than the non-fairbrook merge function! We
@@ -202,7 +202,7 @@ And if you compare it with this:
   [new old]
   (cond (number? new)        (+ old new)
         (time/datetime? new) (time/latest old new)
-		:else old))
+        :else old))
 ```
 
 I believe the former explains better what it is supposed to do.
@@ -239,8 +239,8 @@ the following result:
 (ns luncher.database-stuff
   (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]
-			[fairbrook.rule :as rule]
-			[fairbrook.util :as u]))
+            [fairbrook.rule :as rule]
+            [fairbrook.util :as u]))
 
 (def merge-fn
   (rule/cond-fn {[number? number?]               +,
@@ -250,10 +250,10 @@ the following result:
 (defn add-bill [user price bill datetime]
   (let [new-data {:total price, :last-updated datetime}]
     (while (->> (db/get my-db :lunch-document)
-	            (merge-with merge-fn new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (merge-with merge-fn new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 ### `type-fn`
@@ -318,7 +318,7 @@ example of doing that:
 (def my-hierarchy
   (-> (make-hierarchy)
       (derive Number :number)
-	  (derive Datetime :datetime)))
+      (derive Datetime :datetime)))
 
 (def merge-fn
   (rule/type-fn {:number +, :date time/latest}
@@ -346,8 +346,8 @@ well. `cond-fn` and `type-fn` are unable handle this, as both `:total` and
 (ns luncher.database-stuff
   (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]
-			[fairbrook.rule :as rule]
-			[fairbrook.util :as u])
+            [fairbrook.rule :as rule]
+            [fairbrook.util :as u])
   (:import [lib.fictive.time Datetime]))
 
 (def merge-fn
@@ -357,10 +357,10 @@ well. `cond-fn` and `type-fn` are unable handle this, as both `:total` and
 (defn add-bill [user price bill datetime]
   (let [new-data {:total price, :last-updated datetime}]
     (while (->> (db/get my-db :lunch-document)
-	            (merge-with merge-fn new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (merge-with merge-fn new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 In our current program, as shown above, we use the normal `merge-with`
@@ -385,15 +385,15 @@ For our use-case, we could use `key-merge` like this:
 (defn merge-bills
   [new-data lunch-doc]
   (key/key-merge {:total +, :highest max, :last-updated time/latest}
-	  new-data lunch-doc))
+      new-data lunch-doc))
 
 (defn add-bill [user price bill datetime]
   (let [new-data {:total price, :highest price, :last-updated datetime}]
     (while (->> (db/get my-db :lunch-document)
-	            (merge-bills new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (merge-bills new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 And we could use `key-merge-with` like this:
@@ -454,9 +454,9 @@ we end up with the following code:
 (ns luncher.database-stuff
   (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]
-			[fairbrook.key :as key]
-			[fairbrook.rule :as rule]
-			[fairbrook.util :as u]))
+            [fairbrook.key :as key]
+            [fairbrook.rule :as rule]
+            [fairbrook.util :as u]))
 
 (def merge-fn
   (rule/rule-fn {:total +, :highest max, :last-updated time/latest}
@@ -465,10 +465,10 @@ we end up with the following code:
 (defn add-bill [user price bill datetime]
   (let [new-data {:total price, :highest price, :last-updated datetime}]
     (while (->> (db/get my-db :lunch-document)
-	            (key/merge-with-key merge-fn new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (key/merge-with-key merge-fn new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 This is certainly less verbose than implementing the whole deal yourself!
@@ -509,20 +509,20 @@ The code below with `path-merge` is more or less the same as the one with
 (ns luncher.database-stuff
   (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]
-			[fairbrook.path :as path]
-			[fairbrook.rule :as rule]
-			[fairbrook.util :as u]))
+            [fairbrook.path :as path]
+            [fairbrook.rule :as rule]
+            [fairbrook.util :as u]))
 
 (defn add-bill [user price bill datetime]
   (let [path-rules {[:total] +, [:highest] max, [:last-updated] time/last,
                     [:bills user] clojure.set/union}
         new-data {:total price, :highest price, :last-updated datetime,
-		          :bills {user #{bill}}]
+                  :bills {user #{bill}}]
     (while (->> (db/get my-db :lunch-document)
-	            (path/path-merge path-rules new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (path/path-merge path-rules new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 Note that `path-rules` must be defined within `add-bill`, as `user` is not known
@@ -534,13 +534,13 @@ default action. Of course, `fairbrook.path/path-merge-with` is the solution,
 which takes an optional argument. The result is that we just change this line:
 
 ```clj
-	            (path/path-merge path-rules new-data)
+                (path/path-merge path-rules new-data)
 ```
 
 into this:
 
 ```clj
-	            (path/path-merge path-rules u/err-fn new-data)
+                (path/path-merge path-rules u/err-fn new-data)
 ```
 
 And now, our solution is succinct and our boss is happy. What more could be ask
@@ -604,7 +604,7 @@ call it like so:
       merge-fn (fn m-fn [p v1 v2]
                  ((rule/rule-fn {g +, [:b] -}
                     (path/sub-merge-fn m-fn))
-				  p v1 v2))] ; correct
+                  p v1 v2))] ; correct
   (path/merge-with-path merge-fn {:a {:b 2} :b 5} {:a {:b 3} :b 1}))
 ```
 
@@ -616,7 +616,7 @@ appropriate name:
   (fn m-fn [p v1 v2]
     ((rule/rule-fn rules
                   (path/sub-merge-fn m-fn))
-				  p v1 v2)))
+                  p v1 v2)))
 
 (let [g [:a :b]
       merge-fn (make-merge-fn {g +, [:b] -})] ; more evident
@@ -634,28 +634,28 @@ problem turns into this:
 (ns luncher.database-stuff
   (:require [fictive-time-lib :as time]
             [fictive-couchdb-lib :as db :refer [my-db]]
-			[fairbrook.path :as path]
-			[fairbrook.rule :as rule]
-			[fairbrook.util :as u]))
+            [fairbrook.path :as path]
+            [fairbrook.rule :as rule]
+            [fairbrook.util :as u]))
 
 (defn make-mfn
   [rules]
   (fn m-fn [p v1 v2]
     ((rule/rule-fn rules
                   (path/sub-merge-fn m-fn))
-				  p v1 v2)))
+                  p v1 v2)))
 
 (defn add-bill [user price bill datetime]
   (let [path-rules {[:total] +, [:highest] max, [:last-updated] time/last,
                     [:bills user] clojure.set/union}
         new-data {:total price, :highest price, :last-updated datetime,
-		          :bills {user #{bill}}
-	    m-fn (make-mfn path-rules)]
+                  :bills {user #{bill}}
+        m-fn (make-mfn path-rules)]
     (while (->> (db/get my-db :lunch-document)
-	            (path/merge-with-path m-fn new-data)
-				(db/put! my-db)
-				(db/conflict?))))
-	:success)
+                (path/merge-with-path m-fn new-data)
+                (db/put! my-db)
+                (db/conflict?))))
+    :success)
 ```
 
 Which essentially does the same thing as the `path-merge-with`.
@@ -679,9 +679,9 @@ glue the values together as intended:
 (merge-with
   (rule/type-fn {Long vector,
                  IPersistentVector into,
-				 [IPersistentVector Long], conj
-				 [Long IPersistentVector] #(conj %2 %1)}
-	u/err-fn)
+                 [IPersistentVector Long], conj
+                 [Long IPersistentVector] #(conj %2 %1)}
+    u/err-fn)
   map1
   map2) ;;etc.
 ```
@@ -695,7 +695,7 @@ a `cond-fn`:
 (rule/cond-fn {[odd? odd?] +}
   (rule/type-fn {Long vector,
                  IPersistentVector into,
-	             [IPersistentVector Long], conj
+                 [IPersistentVector Long], conj
                  [Long IPersistentVector] #(conj %2 %1)}
    u/err-fn))
 ```
@@ -721,7 +721,7 @@ Basic chaining usually on the following form:
 (some-fn ruleset
   (some-other-fn other-ruleset
     (some-third-fn third-ruleset ;; And possibly even more
-	  default-fn)))
+      default-fn)))
 ```
 
 And combining is on the following form:
@@ -729,8 +729,8 @@ And combining is on the following form:
 ```clj
 (some-fn {pattern
           (some-other-fn {other-pattern
-		                  (some-third-fn ...)}
-		   other-default-fn)}
+                          (some-third-fn ...)}
+           other-default-fn)}
  default-fn)
 ```
 
@@ -770,11 +770,11 @@ chained together?
 (1-fn r1
   (2-fn r2
     (3-fn r3
-	  (4-fn r4
-	    (5-fn r5
-		  (6-fn r6
-		    (7-fn r7
-			  8-fn)))))))
+      (4-fn r4
+        (5-fn r5
+          (6-fn r6
+            (7-fn r7
+              8-fn)))))))
 ```
 
 You will end up with a "right-tailed" lisp function, as many people consider
@@ -811,7 +811,7 @@ on type, this would be a solution:
 (rule/rule-fn {:foo foo-fn, :bar bar-fn, :baz baz-fn}
   (u/fn3->fn2
     (rule/type-fn {[type1 type2] f} ;; etc...
-	   u/err-fn)))
+       u/err-fn)))
 ```
 
 And, well, that's it! If you have multiple rules that has 2-arity, consider
@@ -829,8 +829,8 @@ this is solved as this:
 (rule/rule-fn {:foo foo-fn, :bar bar-fn}
   (u/fn3->fn2
     (rule/type-fn {[type1 type2] f})
-	(rule/rule-fn {:baz baz-fn}
-	  u/err-fn)))
+    (rule/rule-fn {:baz baz-fn}
+      u/err-fn)))
 ```
 
 Here, a modified function returned by the second argument (`rule-fn {:baz
