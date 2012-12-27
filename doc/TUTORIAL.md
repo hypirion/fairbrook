@@ -585,7 +585,7 @@ Clojure:
 ```
 
 For rules designed at runtime, more tricks has to be done. One may think that
-sharp-quoting the assigned variable may work, but unfortunately not—it will 
+sharp-quoting the assigned variable may work, but unfortunately not—it will
 only result in a RuntimeException because the var is unresolvable. So this will
 not work:
 
@@ -601,7 +601,7 @@ call it like so:
 
 ```clj
 (let [g [:a :b]
-      merge-fn (fn m-fn [p v1 v2] 
+      merge-fn (fn m-fn [p v1 v2]
                  ((rule/rule-fn {g +, [:b] -}
                     (path/sub-merge-fn m-fn))
 				  p v1 v2))] ; correct
@@ -659,3 +659,194 @@ problem turns into this:
 ```
 
 Which essentially does the same thing as the `path-merge-with`.
+
+## Combining and chaining
+
+With the basics at hand, the combining part of Fairbrook is close. We will leave
+the lunch example for now, but will revisit it in the more advanced parts of of
+combining. As of right now, we'll just have a taste of how one combine
+functions.
+
+We start off with the current case: We want to merge two maps, but we know
+there's one key collision. They values may either be Longs or vectors, and we
+want to get a vector with all the elements as a result. However, since we're not
+sure what the values actually are at compile-time, we'll use `type-fn` to easily
+glue the values together as intended:
+
+```clj
+(import 'clojure.lang.IPersistentVector)
+
+(merge-with
+  (rule/type-fn {Long vector,
+                 IPersistentVector into,
+				 [IPersistentVector Long], conj
+				 [Long IPersistentVector] #(conj %2 %1)}
+	u/err-fn)
+  map1
+  map2) ;;etc.
+```
+
+And--naturally--as our functionality increases, so do the complexity of the
+system as a whole. For unknown reasons, we would like to add numbers together
+whenever they both are odd. This is easily done by wrapping the `type-fn` within
+a `cond-fn`:
+
+```clj
+(rule/cond-fn {[odd? odd?] +}
+  (rule/type-fn {Long vector,
+                 IPersistentVector into,
+	             [IPersistentVector Long], conj
+                 [Long IPersistentVector] #(conj %2 %1)}
+   u/err-fn))
+```
+
+Or, another completely viable solution, is to add the `cond-fn` *within* the
+`type-fn`:
+
+```clj
+(rule/type-fn {Long (rule/cond-fn {[odd? odd?] +} vector),
+               IPersistentVector into,
+               [IPersistentVector Long], conj
+               [Long IPersistentVector] #(conj %2 %1)}
+ u/err-fn))
+```
+
+Currently, both are equivalent. As the latter is a bit more succinct, we'll use
+that one.
+
+And, without you even twitching your eye, you've learnt chaining and combining!
+Basic chaining usually on the following form:
+
+```clj
+(some-fn ruleset
+  (some-other-fn other-ruleset
+    (some-third-fn third-ruleset ;; And possibly even more
+	  default-fn)))
+```
+
+And combining is on the following form:
+
+```clj
+(some-fn {pattern
+          (some-other-fn {other-pattern
+		                  (some-third-fn ...)}
+		   other-default-fn)}
+ default-fn)
+```
+
+The functionality shouldn't come as a surprise, of course. Neither should the
+fact that you can put the functions and function calls within eachother, as you
+know they expect and return functions. The result is that you can arbritrarily
+combine and compose functions, which is usually a *nice-to-have* thing. However,
+there are some issues at hand:
+
+1. The arity of the functions will be the same: `rule-fn` and `cond3-fn` expects
+   a function taking three arguments as the optional default function. Every
+   other function expects two arguments, and as such, functions of different
+   arities cannot be combined without some "clever" and possibly very nasty
+   tricks.
+
+2. Related to arity: What happens if you want to chain with `rule-fn`, then
+   `cond-fn` and then `rule-fn` again? You need to somehow pass the first
+   argument to the second and third fn-call, but not the second. Again, this
+   seems very hairy.
+
+3. What would you do if you want to merge based on path first, then key? You
+   have to somehow pop off the last element in the argument. And again, what do
+   you want to do if you somehow want to revert these changes again? (Very
+   likely if you're doing recursive merging)
+
+Luckily, Fairbrook comes with batteries included and helps you out of that tar
+pit without much hassle. We'll cover how to deal with these issues one at a
+time, but first we'll have a look at how to make chaining "prettier".
+
+### Removing right tails
+
+Recall that you can take a second argument to all merge functions ending with
+`-fn`, the default argument. What happens if you have, say eight of these
+chained together?
+
+```clj
+(1-fn r1
+  (2-fn r2
+    (3-fn r3
+	  (4-fn r4
+	    (5-fn r5
+		  (6-fn r6
+		    (7-fn r7
+			  8-fn)))))))
+```
+
+You will end up with a "right-tailed" lisp function, as many people consider
+somewhat unreadable and unpleasant for the eye. We could solve this by using
+`->>`, but then the function order would have to be reversed—making it easy to
+read, but difficult to understand the ordering.
+
+The solution for this problem, if it ever arises, is named `fairbrook.util/<<-`.
+It is exactly the same as `->>`, but in reverse. That is, `(<<- (a 1) (b 2) (c
+3))` is turned into `(a 1 (b 2 (c 3)))`. As such, the previous example would be
+turned into the following snippet:
+
+```clj
+;; (require '[fairbrook.util :refer [<<-]])
+(<<- (1-fn r1)
+     (2-fn r2)
+     (3-fn r3)
+     (4-fn r4)
+     (5-fn r5)
+     (6-fn r6)
+     (7-fn r7)
+      8-fn)
+```
+
+### Going from 3-arity to 2-arity
+
+Solving problem 1 is rather trivial with `fairbrook.util/fn3->fn2`—you wrap the
+function of 2-arity with this macro, and the problem should be out of your
+world. For example, if we first want to merge based on key, and afterwards merge
+on type, this would be a solution:
+
+```clj
+;; (require '[fairbrook.util :as [u] :refer [<<-]])
+(rule/rule-fn {:foo foo-fn, :bar bar-fn, :baz baz-fn}
+  (u/fn3->fn2
+    (rule/type-fn {[type1 type2] f} ;; etc...
+	   u/err-fn)))
+```
+
+And, well, that's it! If you have multiple rules that has 2-arity, consider
+chaining them within the `fn3->fn2`, as it makes it easier to read.
+
+#### Hook back to 3-arity
+
+All fine and well jumping from 3-arity to 2-arity, but how would one jump back
+to 3-arity again? `fn3->fn2` provides such a mechanism as well: An optional
+second argument which is the "hookback" function. Say we for instance want to
+merge based on key first, then some conditional, then back to key. In Fairbrook,
+this is solved as this:
+
+```clj
+(rule/rule-fn {:foo foo-fn, :bar bar-fn}
+  (u/fn3->fn2
+    (rule/type-fn {[type1 type2] f})
+	(rule/rule-fn {:baz baz-fn}
+	  u/err-fn)))
+```
+
+Here, a modified function returned by the second argument (`rule-fn {:baz
+baz-fn} ...`) is appended into the form of the first argument (`type-fn
+{[type1 type2] fn}`). So what happens is that when `type-fn` ends up calling the
+default function because no pair matches, it calls the modified `rule-fn` which
+already has the first argument. As such, the `rule-fn` is "hooked back" and
+everything works as normal.
+
+With `<<-`, this may look a bit more evident and clear:
+
+```clj
+(<<-
+  (rule/rule-fn {:foo foo-fn, :bar bar-fn})
+  (u/fn3->fn2
+    (rule/type-fn {[type1 type2] fn}))
+  (rule/rule-fn {:baz baz-fn})
+  u/err-fn)
+```
