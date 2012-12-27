@@ -61,28 +61,6 @@
   [f & maps]
   (reduce (merge-from-root f) maps))
 
-(defn path-merge
-  "A deeper key-merge. If a key occurs in more than one map and the path is a
-  subpath contained within `rules`, the result is recursively merged. If the
-  path is contained within `rules`, the mapping(s) from the latter will be
-  combined with the mapping in the result by calling
-  ((get rules path) val-in-result val-in-latter). If the path is neither a path
-  nor a subpath contained within `rules`, the result is undefined.
-
-  A path is the vector of keys pointing to a value in a nested map, such
-  that (get-in map path) refers to the value path is associated with. A subpath
-  is a path with one or more elements removed at the end.
-
-  As multiple keys within maps will be recursively merged, this function will
-  throw an error if `merge` cannot be applied on them."
-  [rules & maps]
-  (let [merge-fn (fn merge-fn [path v1 v2]
-                   (if-let [rule (get rules path)]
-                     (rule v1 v2)
-                     ((merge-with-path-fn path merge-fn) v1 v2)))]
-    (reduce (merge-from-root merge-fn) maps)))
-
-
 (defn path-merge-with
   "As path-merge, but takes a default merge function `f` if the path is not
   within `rules` and the path is not a subpath of any of the keys within rules."
@@ -95,3 +73,20 @@
                              ((merge-with-path-fn path merge-fn) v1 v2)
                            :otherwise (f v1 v2))))]
     (reduce (merge-from-root merge-fn) maps)))
+
+(defn path-merge
+  "A deeper key-merge. If a key occurs in more than one map and the path is a
+  subpath contained within `rules`, the result is recursively merged. If the
+  path is contained within `rules`, the mapping(s) from the latter will be
+  combined with the mapping in the result by calling
+  ((get rules path) val-in-result val-in-latter). If the path is neither a path
+  nor a subpath contained within `rules`, the latter value is chosen.
+
+  A path is the vector of keys pointing to a value in a nested map, such
+  that (get-in map path) refers to the value path is associated with. A subpath
+  is a path with one or more elements removed at the end.
+
+  As multiple keys within maps will be recursively merged, this function will
+  throw an error if `merge` cannot be applied on them."
+  [rules & maps]
+  (apply path-merge-with rules (fn [_ x] x) maps))
