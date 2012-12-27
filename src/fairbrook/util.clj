@@ -17,14 +17,13 @@
 
 (defmacro prep-args
   "Prepares the parameters given to the function returned by f-form as if called
-   by (fn args (res-of-f-form param-mods*)). With g-form, appends a function
-   based upon g-form taking any amount of arguments, where any call to it will
-   be equivalent of calling (g-form param*). f-form must take as many arguments
-   as the amount of of param-mods, and g-form must take as many parameters as
-   the size of params. It is okay to have different amount of params and
-   param-mods."
-  {:arglists '([[params*] [param-mods*] f-form]
-                 [[params*] [param-mods*] f-form])}
+   by (fn [params*] (res-of-f-form param-mods*)). With g-form, appends a
+   function based upon g-form taking any amount of arguments, where any call to
+   it will be equivalent of calling (g-form param*). f-form must take as many
+   arguments as the amount of of param-mods, and g-form must take as many
+   parameters as the size of params. It is okay to have different amount of
+   params and param-mods." {:arglists '([[params*] [param-mods*] f-form]
+   [[params*] [param-mods*] f-form])}
   ([params param-mods f-form]
      `(let [f# ~f-form]
         (fn ~params (f# ~@param-mods))))
