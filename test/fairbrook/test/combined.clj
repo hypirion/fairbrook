@@ -82,7 +82,7 @@
 (deftest test-recursive-fns
   (testing "that path-sensitive merges are recursive and working"
     (are [maps expected]
-         (= (reduce (path/merge-from-root rec-fn) maps)
+         (= (reduce (path/merge-with-path-fn [] rec-fn) maps)
             expected)
 
          [{:dish {:name "sandwich" :price 1}}
@@ -166,7 +166,7 @@
        (println left "and" right "have a type mismatch merging profiles.")
        right)))))
 
-(def ^:private meta-merge (path/merge-from-root meta-merge-fn))
+(def ^:private meta-merge (path/merge-with-path-fn [] meta-merge-fn))
 
 
 (deftest test-lein-meta-merge-prototype

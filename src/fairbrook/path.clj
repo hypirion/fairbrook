@@ -15,14 +15,6 @@
                                (assoc m k v))))]
          (reduce merge-entry (or m1 {}) (seq m2))))))
 
-(defn merge-from-root ;; Maybe kill this one? Better to just have
-                      ;; merge-with-path-fn available? idk.
-  "Returns a function merging two maps together \"from root\". If a key
-  collision occurs, associates the key k with (f [k] v1 v2) in the resulting
-  map, where v1 and v2 are the values associated with k in m1 and m2."
-  [f]
-  (merge-with-path-fn [] f))
-
 (defn ^:private subpaths
   [p]
   (loop [acc #{}
@@ -59,7 +51,7 @@
   A path is the vector of keys pointing to a value in a nested map, such
   that (get-in map path) refers to the value path is associated with."
   [f & maps]
-  (reduce (merge-from-root f) maps))
+  (reduce (merge-with-path-fn [] f) maps))
 
 (defn path-merge-with
   "As path-merge, but takes a default merge function `f` if the path is not
@@ -72,7 +64,7 @@
                            (subpath? path)
                              ((merge-with-path-fn path merge-fn) v1 v2)
                            :otherwise (f v1 v2))))]
-    (reduce (merge-from-root merge-fn) maps)))
+    (reduce (merge-with-path-fn [] merge-fn) maps)))
 
 (defn path-merge
   "A deeper key-merge. If a key occurs in more than one map and the path is a
