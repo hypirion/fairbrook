@@ -23,6 +23,25 @@
   [f]
   (merge-with-path-fn [] f))
 
+(defn ^:private subpaths
+  [p]
+  (loop [acc #{}
+         sub (pop p)]
+    (if (seq sub)
+      (recur (conj acc sub) (pop sub))
+      acc)))
+
+(defn subpath?-fn
+  "Returns a function checking whether a path is a strict subpath of any of the
+  paths given.
+
+  A subpath is a nonempty path with one or elements removed from the end of the
+  original path."
+  [paths]
+  (let [subs (reduce into #{} (map subpaths paths))]
+    (fn [subpath]
+      (boolean (get subs subpath false)))))
+
 (defn sub-merge-fn
   "Returns a function taking three arguments: root, m1 and m2, which will merge
   the maps m1 and m2. If a key collision occurs, associates the key k with
@@ -63,11 +82,16 @@
                      ((merge-with-path-fn path merge-fn) v1 v2)))]
     (reduce (merge-from-root merge-fn) maps)))
 
-(comment
-  (defn path-merge-with
-    "As path-merge, but takes a default merge function `f` if the path is not
-  within `rules` and a collision has occured. `f` takes three arguments: The
-  path, val-in-result and val-in-latter. As such, path-merge-with is not
-  recursive, like path-merge."
-    [rules f & maps]
-    (reduce (merge-from-root (rule/rule-fn rules f)) maps)))
+
+(defn path-merge-with
+  "As path-merge, but takes a default merge function `f` if the path is not
+  within `rules` and the path is not a subpath of any of the keys within rules."
+  [rules f & maps]
+  (let [subpath? (subpath?-fn (keys rules))
+        merge-fn (fn merge-fn [path v1 v2]
+                   (let [rule (get rules path)]
+                     (cond rule (rule v1 v2)
+                           (subpath? path)
+                             ((merge-with-path-fn path merge-fn) v1 v2)
+                           :otherwise (f v1 v2))))]
+    (reduce (merge-from-root merge-fn) maps)))
