@@ -540,7 +540,7 @@ which takes an optional argument. The result is that we just change this line:
 into this:
 
 ```clj
-                (path/path-merge path-rules u/err-fn new-data)
+                (path/path-merge-with path-rules u/err-fn new-data)
 ```
 
 And now, our solution is succinct and our boss is happy. What more could be ask
@@ -850,3 +850,104 @@ With `<<-`, this may look a bit more evident and clear:
   (rule/rule-fn {:baz baz-fn})
   u/err-fn)
 ```
+
+### Using both path and keys
+
+If you've not read the part *More control through `merge-with-path`*, do so now.
+This part requires knowledge on how to do manual recursive merging, and the
+previously mentioned part covers that aspect.
+
+There's only one issue left, and that's how to handle both paths and keys in the
+same merge function. Say we want to merge the nested value `[:foo :bar :baz]` by
+adding them together, but want to generally merge `:bar` through multiplying the
+values together. For maps, we recursively merge those, and for everything else,
+we pick the rightmost element.
+
+How do we solve this by hand? If we remove the key merge, we may end up with
+something as easy as this:
+
+```clj
+(def merge-fn
+  (<<-
+    (rule/rule-fn {[:foo :bar :baz] +})
+    (rule/cond3-fn {[u/_ map? map?] (path/sub-merge-fn #'merge-fn)})
+    u/right))
+```
+
+And then call it with `merge-with-path` whenever needed. A possible solution
+would be to use the `cond3-fn` to check for equivalence, like so:
+
+```clj
+(def merge-fn
+  (<<-
+    (rule/rule-fn {[:foo :bar :baz] +})
+    (rule/cond3-fn {(fn [k _ _] (= (peek k) :bar)) (u/fn3->fn2 *)
+                    [u/_ map? map?] (path/sub-merge-fn #'merge-fn)})
+    u/right))
+```
+
+However, this is not only very verbose, it does not propagate the changes we've
+done to the first arguments at all. As such, the function handling the case has
+to modify the first argument as well, and things look rather bleak if we're
+supposed to understand the code afterwards.
+
+The solution to this is to use the `fairbrook.util/prep-args` macro. It takes
+3-4 arguments, the two first being parameter vectors, and the two last being
+functions. The first function parameter is the function which returns the
+modifed parameters, and the second is the *hook-out* function which works
+in the same way as the *hook-out* function in the `fn3->fn2` macro works.
+
+The parameter vectors are better explained through example usage. Say we want to
+do a recursive key merge, where we keys based on a ruleset, and recursively
+merge maps otherwise. It will look like this with `prep-args`:
+
+```clj
+(def key-mfn
+  (u/prep-args [p v1 v2] [(peek p) v1 v2]
+    (rule/rule-fn {:some merge-fns, :placed here})
+    (sub-merge-fn #'key-mfn)))
+```
+
+The two parameter vectors can be parsed as follows: `[p v1 v2]` is the input
+values we should have read, but `[(peek p) v1 v2]` are the values `rule-fn`
+actually receives as input parameters. In the middle, `prep-args` handles the
+transformation of the arguments for us, and calls the function with it.
+The `sub-merge-fn` is placed as second argument within `rule-fn`, but will
+receive the original input data (`[p v1 v2]`).
+
+Note that the first parameter vector and the second parameter vector can be of
+different length. We can use this to simulate `fn3->fn2`, for example would
+this:
+
+```clj
+(u/prep-args [a b c] [b c]
+  (rule/cond-fn {[coll? coll?] concat})
+  u/err-fn)
+```
+
+be equivalent to this:
+
+```clj
+(u/fn3->fn2
+  (rule/cond-fn {[coll? coll?] concat})
+  u/err-fn)
+```
+
+However, it's recommended that you use `fn3->fn2` whenever needed, as it may do
+some additional assumptions and can make the code a bit faster. It's also nice,
+to use, as it has visually less clutter than `prep-args`.
+
+Back to our original problem: Doing both key merges and path merges within same
+merge function. Here's the "optimal" solution, which solves the posed problem:
+
+```clj
+(def merge-fn
+  (<<-
+    (rule/rule-fn {[:foo :bar :baz] +})
+    (u/prep-args [p a b] [(peek p) a b]
+      (rule/rule-fn {:bar *}))
+    (rule/cond3-fn {[u/_ map? map?] (path/sub-merge-fn #'merge-fn)})
+    u/right))
+```
+
+Wastly more readable than the `cond3-fn` we had.
