@@ -22,11 +22,11 @@ the "default" merge operation: Keeping the rightmost element.
 (def merge-fn
   (rule/cond-fn [[(fn [a b] (= a b)) (fn [a b] [a b])]]))
 
-(merge-with merge-fn {:a 1, :b 2} {:a 2, :b 2})
-#_=> {:a 2, :b [2 2]}
+(merge-with merge-fn {:a 1, :b 2, :c 5} {:a 2, :b 2})
+#_=> {:a 2, :b [2 2], :c 5}
 
-(merge-with merge-fn {:a 1, :b 4} {:a 2} {:a 1, :b 6})
-#_=> {:a 1, :b 6}
+(merge-with merge-fn {:a 1, :b 4} {:a 2, :c 8} {:a 1, :b 6})
+#_=> {:a 1, :b 6, :c 8}
 ```
 
 A merge which makes a vector of two elements if they are equal, otherwise keeps
@@ -143,7 +143,7 @@ it sees.
 
 ### `type-fn`
 
-Dispatch on type. Like `cond-fn`, accepts maps only. Undefined ordering.
+Dispatch on type. Like `cond-fn`, but accepts maps only. Undefined ordering.
 
 This function adds elements into a set, where it is assumed that at most one of
 them are a set, and not both.
@@ -174,10 +174,10 @@ an error if no combination specified exists:
 (import 'clojure.lang.IPersistentVector)
 
 (def merge-fn
-  (rule/type-fn {[Number Number] vector,
+  (rule/type-fn {Number vector,
                  [IPersistentVector Number] conj,
                  [Number IPersistentVector] #(conj %2 %1),
-                 [IPersistentVector IPersistentVector] into}
+                 IPersistentVector into}
     u/err-fn))
 
 (merge-with merge-fn {:a 2, :b [3]} {:a 3.0, :b 4/5})
@@ -238,5 +238,98 @@ You can also use `rule-fn` and `merge-with-key` to do the job:
 #=_> {:a '(3 4), :c 10}
 ```
 
+`u/right` and `u/left` is also 3-arity, taking the rightmost and leftmost
+**value**:
+
+```clj
+(def key-mfn
+  (rule/rule-fn {} u/right))
+
+(key/merge-with-key key-mfn {:a [1 2], :b #{2 3}} {:a [3 4], :b #{3 6 7 2}})
+#_=> {:a [3 4], :b #{2 3 6 7}}
+
+(def key-mfn
+  (rule/rule-fn {} u/left))
+
+(key/merge-with-key key-mfn {:a [1 2], :b #{2 3}} {:a [3 4], :b #{3 6 7 2}})
+#_=> {:a [1 2], :b #{2 3}}
+```
+
 The good part with this is that you can compose them with other functions. Look
 at the combining part below.
+
+## Recursive merging based on path
+
+### `path-merge`
+
+To recursively merge and specify merge function based on path, use `path-merge`:
+
+```clj
+(def rules {[:a :a] +, [:a :b] *, [:b :a] -, [:b :b] /})
+
+(path/path-merge rules {:a {:a 1, :b 2} :b {:a 3, :b 4}}
+                       {:a {:a 5, :b 6} :b {:a 7, :b 8}})
+#_=> {:a {:a 6, :b 12}, :b {:a -4, :b 1/2}}
+
+(path/path-merge rules {:a {:a 1, :c 2} :c {:a 3, :b 4}}
+                       {:a {:a 5, :c 6} :c {:a 7, :b 8}})
+#_= {:a {:a 6, :c 6}, :c {:a 7, :b 8}}
+;; Normal merge rules if the path is not a subpath in rules
+```
+
+### `path-merge-with`
+
+To recursively merge as `path-merge`, but specify a default merge function, use
+`path-merge-with`:
+
+```clj
+(def rules {[:a :a] +, [:a :b] *, [:b :a] -, [:b :b] /})
+
+(path/path-merge-with rules u/left {:a {:a 1, :b 2} :b {:a 3, :b 4}}
+                                   {:a {:a 5, :b 6} :b {:a 7, :b 8}})
+#_=> {:a {:a 6, :b 12}, :b {:a -4, :b 1/2}}
+
+(path/path-merge-with rules u/left {:a {:a 1, :c 2} :c {:a 3, :b 4}}
+                                   {:a {:a 5, :c 6} :c {:a 7, :b 8}})
+#_={:a {:a 6, :c 2}, :c {:a 3, :b 4}}
+```
+
+### Recursive merge manually
+
+Needed for more complex mergings. `subpath?-fn` returns a fn checking whether a
+path is a subpath of the previously given paths:
+
+```clj
+(def paths [[:a :b :c] [:a :b :d] [:c :b :a]])
+
+(def subpath? (path/subpath?-fn paths))
+
+(subpath? [:a]) #_=> true
+(subpath? [:b]) #_=> false
+(subpath? [:a :b]) #_=> true
+(subpath? [:a :b :c]) #_=> false
+(subpath? [:c :b]) #_=> true
+(subpath? [:c :d]) #_=> false
+```
+
+Recursive merge function through `sub-merge-fn` and `merge-with-path`. This is
+like `path-merge-with`, with `u/left` as default fn.
+
+```clj
+(def rules {[:a :b :c] +, [:a :c] *, [:c :b] into})
+
+(def merge-fn
+  (rule/rule-fn rules
+    (rule/cond3-fn {[(path/subpath?-fn (keys rules)) u/_ u/_]
+               (path/sub-merge-fn #'merge-fn)}
+      u/left)))
+
+(path/merge-with-path merge-fn {:c {:b [1 2]}} {:c {:b [3 4]}})
+#_=> {:c {:b [1 2 3 4]}}
+
+(path/merge-with-path merge-fn {:a {:b {:c 10}, :c 10}} {:a {:b {:c 2}, :c 2}})
+#_=> {:a {:b {:c 12}, :c 20}}
+
+(path/merge-with-path merge-fn {:c {:not :subpath}} {:c {:a :b}})
+#_=> {:c {:a :b, :not :subpath}}
+```
