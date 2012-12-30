@@ -137,5 +137,57 @@ it sees.
 (def merge-fn
   (rule/cond-fn {[nil? nil?] u/right,
                  [boolean nil?] u/left,
-                 [nil? boolean] u/right}))
+                 [nil? boolean] u/right}
+    u/left))
+```
+
+### `type-fn`
+
+Dispatch on type. Like `cond-fn`, accepts maps only. Undefined ordering.
+
+This function adds elements into a set, where it is assumed that at most one of
+them are a set, and not both.
+
+```clj
+(import 'clojure.lang.IPersistentSet)
+
+(def merge-fn
+  (rule/type-fn {[IPersistentSet Object] conj,
+                 [Object IPersistentSet] #(conj %2 %1)}
+    hash-set))
+
+(merge-with merge-fn {:a #{1}, :b 5, :c 3} {:a 4, :b #{2}, :c 6})
+#_=> {:a #{1 4}, :c #{3 6}, :b #{2 5}}
+
+(merge-with merge-fn {:a #{1}} {:b #{2}})
+;; Undefined, may be {:a #{1 #{2}}} or {:a #{2 #{1}}}.
+```
+
+When one wants to test that both elements are of the same type, the vector can
+be omitted and one can just specify the type instead.
+
+This function adds `Number`s into a `PersistentVector`, creating one if none
+exist. Will concatenate two vectors if both values are vectors, and will throw
+an error if no combination specified exists:
+
+```clj
+(import 'clojure.lang.IPersistentVector)
+
+(def merge-fn
+  (rule/type-fn {[Number Number] vector,
+                 [IPersistentVector Number] conj,
+                 [Number IPersistentVector] #(conj %2 %1),
+                 [IPersistentVector IPersistentVector] into}
+    u/err-fn))
+
+(merge-with merge-fn {:a 2, :b [3]} {:a 3.0, :b 4/5})
+#_=> {:a [2 3.0], :b [3 4/5]}
+
+(merge-with merge-fn {:a [1.0M], :b 1N} {:a [22], :b [42]})
+#_=> {:a [1.0M 22], :b [42 1N]}
+
+(merge-with merge-fn {:a 1} {:a :crash})
+;; Exception Couldn't merge based on values: 1, :foo
+;; sun.reflect.NativeConstructorAccessorImpl.newInstance0
+;; (NativeConstructorAccessorImpl.java:-2)
 ```
