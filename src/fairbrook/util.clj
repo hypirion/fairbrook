@@ -63,7 +63,7 @@
   by f_i is false."
   ([f1 f2]
      (fn [v1 v2]
-       (and (f1 v2) (f2 v2))))
+       (and (f1 v1) (f2 v2))))
   ([f1 f2 f3]
      (fn [v1 v2 v3]
        (and (f1 v1) (f2 v2) (f3 v3)))))
