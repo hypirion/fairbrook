@@ -191,3 +191,52 @@ an error if no combination specified exists:
 ;; sun.reflect.NativeConstructorAccessorImpl.newInstance0
 ;; (NativeConstructorAccessorImpl.java:-2)
 ```
+
+## Merge based on key
+
+### `key-merge`
+
+To merge based on key and nothing else, use `key-merge`:
+
+```clj
+(def rules {:a +, :b *})
+
+(key/key-merge rules {:a 1, :b 2} {:a 3, :b 4})
+#_=> {:a 4, :b 8}
+
+(key/key-merge rules {:a 4, :f 10} {:a 3, :f 22})
+#_=> {:a 7, :f 22} ;; Defaults to rightmost
+```
+
+### `key-merge-with`
+
+If you want to specify default function, use `key-merge-with`:
+
+```clj
+(def rules {:a +, :b *})
+
+(key/key-merge-with rules max {:a 1, :c 4} {:a 3, :c -1})
+#_=> {:a 4, :c 4}
+
+(key/key-merge-with rules min {:b 4, :g 65} {:b 3, :g 89})
+#_=> {:b 12, :g 65}
+```
+
+### `rule-fn` and `merge-with-key`
+
+You can also use `rule-fn` and `merge-with-key` to do the job:
+
+```clj
+(def key-mfn
+  (rule/rule-fn {:a concat, :b into}
+    (fn [rule v1 v2] (+ v1 v2)))) ;; NB! 3-arity fn here
+
+(key/merge-with-key key-mfn {:a [1 2], :b #{2 3}} {:a [3 4], :b #{3 6 7 2}})
+#_=> {:a '(1 2 3 4), :b #{2 3 6 7}}
+
+(key/merge-with-key key-mfn {:a [3 4], :c 2} {:a nil, :c 8})
+#=_> {:a '(3 4), :c 10}
+```
+
+The good part with this is that you can compose them with other functions. Look
+at the combining part below.
