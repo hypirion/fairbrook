@@ -82,5 +82,5 @@
 
 (defn err-fn
   [& args]
-  (throw (Exception. "Couldn't merge based on values:"
-                     (apply str (interpose " " args)))))
+  (throw (Exception. (apply str "Couldn't merge based on values: "
+                            (interpose ", " args)))))
