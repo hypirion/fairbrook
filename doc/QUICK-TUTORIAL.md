@@ -333,3 +333,116 @@ like `path-merge-with`, with `u/left` as default fn.
 (path/merge-with-path merge-fn {:c {:not :subpath}} {:c {:a :b}})
 #_=> {:c {:a :b, :not :subpath}}
 ```
+
+## Chaining, combining, preparing
+
+### In general
+
+You may combine functions through chaining or as a tree. Here is an example
+which utilizes both: If both values are integers, add them if both are odd. If
+both are even, multiply them, and if not, find their positive difference. If the
+values are maps, merge them, keeping the first found value. If one of them is a
+set and the other is a float or ratio, add the number to the set. If both are
+sets, take their union. Otherwise, create a new set if you have two numbers, and
+default to the rightmost value if nothing of this is is true. (This sounds more
+complicated than it really is.)
+
+```clj
+(import 'clojure.java.IPersistentSet)
+
+(def int-stuff
+  (rule/cond-fn {[odd? odd?] +,
+                 [even? even?] *,
+                 > -,
+                 < #(- %2 %1)}
+    u/err-fn)) ;; err-fn won't happen.
+
+(def merge-fn
+  (rule/cond-fn {[integer? integer?] int-stuff,
+                 [map? map?] (partial merge-with u/left)}
+    (rule/type-fn {IPersistentSet into, ;; poor man's union
+                   [IPersistentSet Number] conj,
+                   [Number IPersistentSet] #(conj %2 %1),
+                   Number hash-set}
+      u/right)))
+```
+
+### `<<-`
+
+When doing longer chains, `<<-` may be of value to avoid right tails. For
+example, the merge function in the section about manual recursive merging can be
+written as follows instead:
+
+```clj
+(def merge-fn
+  (<<-
+   (rule/rule-fn rules)
+   (rule/cond3-fn {[(path/subpath?-fn (keys rules)) u/_ u/_]
+                   (path/sub-merge-fn #'merge-fn)})
+    u/left))
+;; Expands into the original code.
+```
+
+### `fn3->fn2`
+
+`rule-fn` and `cond3-fn` takes by default a 3-argument function. Bypass this
+with the macro `fn3->fn2`.
+
+Here is a function which checks keys first, and if none applies adds integers
+together or picks the rightmost value:
+
+```clj
+(def merge-fn
+  (<<-
+   (rule/rule-fn {:a concat, :b into})
+   (u/fn3->fn2
+     (rule/cond-fn {[integer? integer?] +}))))
+
+(key/merge-with-key merge-fn {:a [1 2], :b #{1 2}} {:a [3 4], :b #{3 -1}})
+#_=> {:a '(1 2 3 4), :b #{-1 1 2 3}}
+
+(key/merge-with-key merge-fn {:c 4, :d :foo} {:c 4, :d :bar})
+#_=> {:c 8, :d :bar}
+```
+
+You could also chain within the `fn3->fn2` function like this:
+
+```clj
+(import 'clojure.lang.IPersistentSet)
+
+(def merge-fn
+  (<<-
+   (rule/rule-fn {:a concat, :b into})
+   (u/fn3->fn2
+     (<<-
+       (rule/cond-fn {[integer? integer?] +})
+       (rule/type-fn {IPersistentSet into})))))
+
+(key/merge-with-key merge-fn {:a #{1 2}, :c #{1 2}, :d 1}
+                             {:a #{2 1}, :c #{1 2}, :d 4})
+#_=> {:a '(1 2 1 2), :c #{1 2}, :d 5}
+
+(key/merge-with-key merge-fn {:c [1 2 3]} {:c [4 5 6]})
+#_= {:c [4 5 6]}
+```
+
+You could of course also hook out again, if you want to. Say you want to test
+some more keys after all other checks have ran, you can then hook it out by
+giving the other `rule-fn` as second parameter to `fn3->fn2` (put in there by
+`<<-`):
+
+```clj
+(import 'clojure.java.IPersistentSet)
+
+(def merge-fn
+  (<<-
+   (rule/rule-fn {:a concat, :b into})
+   (u/fn3->fn2
+     (<<-
+       (rule/cond-fn {[integer? integer?] +})
+       (rule/type-fn {IPersistentSet into})))
+   (rule/rule-fn {:c interleave})))
+
+(key/merge-with-key merge-fn {:a #{1}, :c [1 2 3]} {:a [4 5 6], :c [4 5 6]})
+#_=> {:a '(1 4 5 6), :c '(1 4 2 5 3 6)}
+```
