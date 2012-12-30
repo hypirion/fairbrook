@@ -76,9 +76,6 @@
 
   A path is the vector of keys pointing to a value in a nested map, such
   that (get-in map path) refers to the value path is associated with. A subpath
-  is a path with one or more elements removed at the end.
-
-  As multiple keys within maps will be recursively merged, this function will
-  throw an error if `merge` cannot be applied on them."
+  is a path with one or more elements removed at the end."
   [rules & maps]
   (apply path-merge-with rules (fn [_ x] x) maps))
