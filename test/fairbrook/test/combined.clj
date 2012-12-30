@@ -75,8 +75,7 @@
     (u/<<-
      (rule/rule-fn {:allergies union, :tip +})
      (rule/cond3-fn {(fn [k & _] (= k :cheapest))
-                     #(min %2 %3)})))   ; Sorry, hard to find proper use cases
-                                        ; for cond3
+                     #(min %2 %3)})))
    (path/sub-merge-fn #'rec-fn)))
 
 (deftest test-recursive-fns
@@ -151,7 +150,7 @@
       [[set? set?] union]]))
 
    (rule/cond3-fn
-    {(u/and-fn u/_ map? map?) (path/sub-merge-fn #'meta-merge-fn)})
+    {[u/_ map? map?] (path/sub-merge-fn #'meta-merge-fn)})
 
    (u/fn3->fn2
     (rule/cond-fn
