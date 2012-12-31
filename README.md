@@ -10,7 +10,7 @@ fine-grained map merges. Its design is heavily based upon higher-order
 functions: Most functions take one optional function as input and returns a
 function. This is done to make it easy, yet simple, to design chains of rules.
 
-fairbrook is compatible with clojure 1.2 up to 1.5-beta2, and has no other
+fairbrook is compatible with clojure 1.2 up to 1.5-RC1, and has no other
 dependencies. The API is finished, only some small correctness checks are needed
 before it is deployed onto Clojars (better not have bugs because I didn't check
 them well enough). However, you're free to fetch it through git clone and lein
@@ -25,7 +25,11 @@ within your `project.clj`:
 [fairbrook "0.1.0"] ; (NB: not yet released)
 ```
 
-To get a better understanding of fairbrook, have a look at the [tutorial](https://github.com/hyPiRion/fairbrook/blob/master/doc/TUTORIAL.md).
+To get a better understanding of fairbrook, have a look at the
+[tutorial](https://github.com/hyPiRion/fairbrook/blob/master/doc/TUTORIAL.md),
+or if you just want a taste, skim through the
+["quick" "tutorial"](https://github.com/hyPiRion/fairbrook/blob/master/doc/QUICK-TUTORIAL.md)
+to get a taste of what it looks like.
 
 ## License
 

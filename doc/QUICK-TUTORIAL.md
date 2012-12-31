@@ -273,7 +273,7 @@ To recursively merge and specify merge function based on path, use `path-merge`:
 
 (path/path-merge rules {:a {:a 1, :c 2} :c {:a 3, :b 4}}
                        {:a {:a 5, :c 6} :c {:a 7, :b 8}})
-#_= {:a {:a 6, :c 6}, :c {:a 7, :b 8}}
+#_=> {:a {:a 6, :c 6}, :c {:a 7, :b 8}}
 ;; Normal merge rules if the path is not a subpath in rules
 ```
 
@@ -291,7 +291,7 @@ To recursively merge as `path-merge`, but specify a default merge function, use
 
 (path/path-merge-with rules u/left {:a {:a 1, :c 2} :c {:a 3, :b 4}}
                                    {:a {:a 5, :c 6} :c {:a 7, :b 8}})
-#_={:a {:a 6, :c 2}, :c {:a 3, :b 4}}
+#_=> {:a {:a 6, :c 2}, :c {:a 3, :b 4}}
 ```
 
 ### Recursive merge manually
@@ -355,7 +355,7 @@ complicated than it really is.)
                  [even? even?] *,
                  > -,
                  < #(- %2 %1)}
-    u/err-fn)) ;; err-fn won't happen.
+    u/err-fn)) ;; This won't happen, but better to be safe than sorry
 
 (def merge-fn
   (rule/cond-fn {[integer? integer?] int-stuff,
@@ -423,7 +423,7 @@ You could also chain within the `fn3->fn2` function like this:
 #_=> {:a '(1 2 1 2), :c #{1 2}, :d 5}
 
 (key/merge-with-key merge-fn {:c [1 2 3]} {:c [4 5 6]})
-#_= {:c [4 5 6]}
+#_=> {:c [4 5 6]}
 ```
 
 You could of course also hook out again, if you want to. Say you want to test
