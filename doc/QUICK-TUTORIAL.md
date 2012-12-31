@@ -321,7 +321,7 @@ like `path-merge-with`, with `u/left` as default fn.
 (def merge-fn
   (rule/rule-fn rules
     (rule/cond3-fn {[(path/subpath?-fn (keys rules)) u/_ u/_]
-               (path/sub-merge-fn #'merge-fn)}
+                    (path/sub-merge-fn #'merge-fn)}
       u/left)))
 
 (path/merge-with-path merge-fn {:c {:b [1 2]}} {:c {:b [3 4]}})
@@ -443,6 +443,62 @@ giving the other `rule-fn` as second parameter to `fn3->fn2` (put in there by
        (rule/type-fn {IPersistentSet into})))
    (rule/rule-fn {:c interleave})))
 
+
+(key/merge-with-key merge-fn {:c #{1 2 3}} {:c #{4 5 6}})
+#_=> {:c #{1 2 3 4 5 6}}
+
 (key/merge-with-key merge-fn {:a #{1}, :c [1 2 3]} {:a [4 5 6], :c [4 5 6]})
 #_=> {:a '(1 4 5 6), :c '(1 4 2 5 3 6)}
+```
+
+### `prep-args`
+
+You may also want to use both paths and keys. This function recursively handles
+this through `prep-args`:
+
+```clj
+(def f-rules {[:a :b] +, [:a :c] *, [:d] u/left})
+
+(def subpath? (path/subpath?-fn (keys f-rules)))
+
+(def merge-fn
+  (<<-
+    (rule/rule-fn f-rules)
+    (rule/cond3-fn {[subpath? u/_ u/_] (path/sub-merge-fn #'merge-fn)})
+    (u/prep-args [p v1 v2] [(peek p) v1 v2]
+      (rule/rule-fn {:a *, :c +}))))
+
+(path/merge-with-path merge-fn {:a {:b 2, :c 5}} {:a {:b 3, :c 4}})
+#_=> {:a {:c 20, :b 5}}
+
+(path/merge-with-path merge-fn {:a {:a 6}, :c 20} {:a {:a 10}, :c 13})
+#_=> {:a {:a 60}, :c 33}
+
+(path/merge-with-path merge-fn {:d {:a 15, :c 10}} {:d {:a 10, :c 40}})
+#_=> {:d {:a 15, :c 10}}
+```
+
+`prep-args` also take two arguments, so if it is given two, it will "hook" out
+again:
+
+```clj
+(def f-rules {[:c] *, [:d] u/left})
+(def l-rules {[:a :b] +, [:a :c] *, [:a] vector})
+
+(def subpath? (path/subpath?-fn (mapcat keys [f-rules l-rules])))
+
+(def merge-fn
+  (<<-
+    (rule/rule-fn f-rules)
+    (rule/cond3-fn {[subpath? u/_ u/_] (path/sub-merge-fn #'merge-fn)})
+    (u/prep-args [p v1 v2] [(peek p) v1 v2]
+      (rule/rule-fn {:a *, :c +}))
+    (rule/rule-fn l-rules)))
+
+(path/merge-with-path merge-fn {:a {:b 2, :c 5, :a 10}}
+                               {:a {:b 3, :c 4, :a 10}})
+#_=> {:a {:a 100, :c 9, :b 5}}
+
+(path/merge-with-path merge-fn {:a {:c 2}, :c 10} {:a {:c 10} :c 2})
+#_=> {:a {:c 12}, :c 20}
 ```
