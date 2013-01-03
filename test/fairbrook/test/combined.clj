@@ -16,7 +16,7 @@
                 (u/fn3->fn2
                  (u/<<-
                   (rule/type-fn {IPersistentSet union, Number +})
-                  (rule/cond-fn [[[vector? vector?] #(map vector % %2)]])))
+                  (rule/cond-fn [[vector? vector?] #(map vector % %2)])))
                 (rule/rule-fn {:c u/left}))]
       (are [maps expected] (= (reduce (key/merge-with-key-fn m-fn) maps)
                               expected)
@@ -133,34 +133,34 @@
                   [:warn-on-reflection] #(or %1 %2)})
    (u/fn3->fn2
     (rule/cond-fn
-     [[(u/or-fn (comp :displace meta) (comp :replace meta))
-       (meta/ff u/right
-                (fn [left right] (merge (dissoc left :displace)
-                                       (dissoc right :replace))))]
+     [(u/or-fn (comp :displace meta) (comp :replace meta))
+      (meta/ff u/right
+               (fn [left right] (merge (dissoc left :displace)
+                                      (dissoc right :replace))))
 
-      [[(comp :reduce meta) u/_]
-       (meta/ff (fn [left right]
-                  (-> left meta :reduce
-                      (reduce left right)))
-                u/left)]
+      [(comp :reduce meta) u/_]
+      (meta/ff (fn [left right]
+                 (-> left meta :reduce
+                     (reduce left right)))
+               u/left)
 
-      [[nil? u/_] u/right]
-      [[u/_ nil?] u/left]
+      [nil? u/_] u/right
+      [u/_ nil?] u/left
 
-      [[set? set?] union]]))
+      [set? set?] union]))
 
    (rule/cond3-fn
     {[u/_ map? map?] (path/sub-merge-fn #'meta-merge-fn)})
 
    (u/fn3->fn2
     (rule/cond-fn
-     [[[coll? coll?]
-       (rule/cond-fn
-        {(u/or-fn (comp :prepend meta) (comp :prepend meta))
-         (meta/ff concat #(merge %1 (select-keys %2 [:displace])))}
-        concat)]
+     [[coll? coll?]
+      (rule/cond-fn
+       {(u/or-fn (comp :prepend meta) (comp :prepend meta))
+        (meta/ff concat #(merge %1 (select-keys %2 [:displace])))}
+       concat)
 
-      [#(= (class %1) (class %2)) u/right]]
+      #(= (class %1) (class %2)) u/right]
      (fn [left right]
        (println left "and" right "have a type mismatch merging profiles.")
        right)))))

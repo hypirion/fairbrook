@@ -79,7 +79,9 @@
               (let [t1 (first t)
                     t2 (second t)]
                 [(fn [v1 v2] (and (t1 v1) (t2 v2))) f])
-              tf)))]
+              tf)))
+        cases (if (map? cases) (seq cases)
+                  (partition 2 cases))]
     (doall (map prepare-case cases))))
 
 (defn cond-fn
@@ -112,7 +114,9 @@
             (if (vector? t)
               (let [[tk t1 t2] t]
                 [(fn [k v1 v2] (and (tk k) (t1 v1) (t2 v2))) f])
-              tf)))]
+              tf)))
+        cases (if (map? cases) (seq cases)
+                  (partition 2 cases))]
     (doall (map prepare-case cases))))
 
 (defn cond3-fn
