@@ -51,7 +51,7 @@
   A path is the vector of keys pointing to a value in a nested map, such
   that (get-in map path) refers to the value path is associated with."
   [f & maps]
-  (reduce (merge-with-path-fn [] f) maps))
+  (reduce (merge-with-path-fn [] f) nil maps))
 
 (defn path-merge-with
   "As path-merge, but takes a default merge function `f` if the path is not
@@ -64,7 +64,7 @@
                            (subpath? path)
                              ((merge-with-path-fn path merge-fn) v1 v2)
                            :otherwise (f v1 v2))))]
-    (reduce (merge-with-path-fn [] merge-fn) maps)))
+    (reduce (merge-with-path-fn [] merge-fn) nil maps)))
 
 (defn path-merge
   "A deeper key-merge. If a key occurs in more than one map and the path is a
