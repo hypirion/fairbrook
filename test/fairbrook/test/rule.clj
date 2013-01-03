@@ -36,7 +36,7 @@
       (are [rules maps expected]
            (= (reduce #(merge-with (type-fn rules) %1 %2) maps)
               expected)
-           
+
            {}
            [{:a 1, :b 2, :c :d} {:a 5} {:a 3} {:b 4} {:c 4, :b 9}]
            #_=> {:a 3, :b 9, :c 4}
@@ -54,6 +54,85 @@
            {Object (fn [a _] a)}
            [{:a 1, :b :foo, :c 'f, [] {}} {:a 2, :b nil, :c :g, [] []}
             {:a nil, :b :bar, :c :d, [] #{}} {:a 1 :b 2 :c nil [] '()}]
-           #_=> {:a 1, :b :bar, :c nil, [] {}}))
-    ;; TODO: More tests...
-    ))
+           #_=> {:a 1, :b :bar, :c nil, [] {}}))))
+
+(deftest test-cond-fn
+  (let [num? number?
+        rules [(fn [a b] (and (num? a) (>= 1 a))) (constantly :one)
+               (fn [a b] (and (num? a) (>= 2 a))) (constantly :two)
+               (fn [a b] (and (num? a) (>= 3 a))) (constantly :three)
+               (fn [a b] (and (num? a) (>= 4 a))) (constantly :four)]]
+
+    (let [merge-fn (cond-fn rules)]
+      (testing "that cond-fn doesn't merge if no collision occurs"
+        (are [maps expected]
+             (= (apply merge-with merge-fn maps) expected)
+
+             [{:a 1} {:b 2} {:c 3} {:e 4}]
+             #_=> {:a 1, :b 2, :c 3, :e 4}
+
+             [{1 2 3 4} {5 6 7 8}]
+             #_=> {1 2 3 4 5 6 7 8}))
+
+      (testing "that cond-fn iterates over tests in order when given a vector"
+        (are [a b expected]
+             (= (merge-with merge-fn a b) expected)
+
+             {1 1, 2 2} {1 :a, 2 2}
+             #_=> {1 :one, 2 :two}
+
+             {3 3, 4 4} {3 1, 4 2}
+             #_=> {3 :three, 4 :four}))
+
+      (testing "that cond-fn defaults to rightmost when no default fn is given"
+        (is (= (merge-with merge-fn {:boo :baah} {:boo :foo}) {:boo :foo}))
+        (is (= (merge-with merge-fn {1 :one} {1 :uno}) {1 :uno}))))
+
+    (let [merge-fn (cond-fn rules vector)]
+      (testing "that cond-fn invokes optional fn if no test return true"
+        (are [a b expected]
+             (= (merge-with merge-fn a b) expected)
+
+             {1 1, 2 2} {1 :a, 2 2}
+             #_=> {1 :one, 2 :two}
+
+             {3 3, 4 4} {3 1, 4 2}
+             #_=> {3 :three, 4 :four}
+
+             {:boo :baah} {:boo :foo}
+             #_=> {:boo [:baah :foo]}
+
+             {1 :one} {1 :uno}
+             #_=> {1 [:one :uno]}
+
+             {:a :b, :c :d} {:a :b}
+             #_=> {:a [:b :b], :c :d})))
+
+    (let [rules {(fn [a b] (and (num? a) (= 1 a))) (constantly :one)
+                 (fn [a b] (and (num? a) (= 2 a))) (constantly :two)
+                 (fn [a b] (and (num? a) (= 3 a))) (constantly :three)
+                 (fn [a b] (and (num? a) (= 4 a))) (constantly :four)}
+          merge-fn (cond-fn rules vector)]
+
+      (testing "that cond-fn accepts maps instead of vectors"
+        (are [a b expected]
+             (= (merge-with merge-fn a b) expected)
+
+             {1 1, 2 2} {1 :a, 2 2}
+             #_=> {1 :one, 2 :two}
+
+             {3 3, 4 4} {3 1, 4 2}
+             #_=> {3 :three, 4 :four}))
+
+      (testing "that cond-fn accepts maps and a default argument"
+        (are [a b expected]
+             (= (merge-with merge-fn a b) expected)
+
+             {:boo :baah} {:boo :foo}
+             #_=> {:boo [:baah :foo]}
+
+             {1 :one} {1 :uno}
+             #_=> {1 [:one :uno]}
+
+             {:a :b, :c :d} {:a :b}
+             #_=> {:a [:b :b], :c :d})))))
