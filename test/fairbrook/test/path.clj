@@ -78,3 +78,17 @@
           {:g {:b [2 4 6 8 10]}, :a :discard, :r {:e [5 6] :h :bar}}]
          #_=> {:g {:b {1 2 3 4 5 6 7 8 9 10}},
                :r {:e [2 3 5 6] :h :foo}, :a :keep})))
+
+(deftest test-subpath?-fn
+  (testing "that subpath?-fn works as intended"
+    (let [paths [[:a :b :c] [:a :b :d] [:c :b :a]]
+          subpath? (subpath?-fn paths)]
+      (are [actual expected]
+           (= actual expected)
+
+           (subpath? [:a]) #_=> true
+           (subpath? [:b]) #_=> false
+           (subpath? [:a :b]) #_=> true
+           (subpath? [:a :b :c]) #_=> false
+           (subpath? [:c :b]) #_=> true
+           (subpath? [:c :d]) #_=> false))))
