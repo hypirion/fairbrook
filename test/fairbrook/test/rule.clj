@@ -1,6 +1,7 @@
 (ns fairbrook.test.rule
   (:use [clojure.test]
-        [fairbrook.rule]))
+        [fairbrook.rule])
+  (:require [fairbrook.key :as key]))
 
 (deftest test-type-fn
   (testing "that type-fn dispatches correctly on type"
@@ -155,3 +156,52 @@
 
            {:a "a string", :b #"a regex"} {:a 1, :b {:a :map}}
            #_=> {:a :default, :b :default}))))
+
+(deftest test-cond3-fn
+  (testing "that cond3-fn gives keyword and vals as args to test and merge fn"
+    (let [rules [(fn [a b c] (= a :a))   (fn [a b c] (concat b c))
+                 (fn [a b c] (= b :foo)) (fn [a b c] (vector a b c))]
+          merge-fn (cond3-fn rules)]
+      (are [a b expected]
+           (= (key/merge-with-key merge-fn a b) expected)
+
+           {:a [1 2]} {:a [3 4]}
+           #_=> {:a '(1 2 3 4)}
+
+           {:w :foo, :e :f} {:w [1 2 3], :e :g}
+           #_=> {:w [:w :foo [1 2 3]], :e :g})))
+
+  (testing "that cond3-fn accept rules as maps"
+    (let [rules {(fn [a b c] (= a :a))   (fn [a b c] (concat b c))
+                 (fn [a b c] (= b :foo)) (fn [a b c] (vector a b c))}
+          merge-fn (cond3-fn rules)]
+      (are [a b expected]
+           (= (key/merge-with-key merge-fn a b) expected)
+
+           {:a [1 2]} {:a [3 4]}
+           #_=> {:a '(1 2 3 4)}
+
+           {:w :foo, :e :f} {:w [1 2 3], :e :g}
+           #_=> {:w [:w :foo [1 2 3]], :e :g})))
+
+  (testing "that cond3-fn expands vector test abbreviations properly"
+    (let [rules [[map? (constantly true) (constantly true)] (constantly :???),
+                 [#(= % :foo) map? map?] vector,
+                 [keyword? map? map?] #(merge %2 %3),
+                 [#(= % :bar) (constantly true) (constantly true)]
+                 #(vector %2 %3)]
+          merge-fn (cond3-fn rules)]
+      (are [a b expected]
+           (= (key/merge-with-key merge-fn a b) expected)
+
+           {:foo {:a 1}} {:foo {:a 2}}
+           #_=> {:foo [:foo {:a 1} {:a 2}]}
+
+           {:v {:a :map}, :bar {1 2}} {:v {:mappy :map}, :bar {2 3}}
+           #_= {:v {:a :map, :mappy :map}, :bar {1 2, 2 3}}
+
+           {:bar :a} {:bar :b}
+           #_=> {:bar [:a :b]}
+
+           {:jar :preview, :var :x} {:jar :snapshot, :var :y}
+           #_=> {:jar :snapshot, :var :y}))))
