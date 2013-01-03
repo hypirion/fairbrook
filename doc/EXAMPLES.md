@@ -20,7 +20,7 @@ the "default" merge operation: Keeping the rightmost element.
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[(fn [a b] (= a b)) (fn [a b] [a b])]]))
+  (rule/cond-fn [(fn [a b] (= a b)) (fn [a b] [a b])]))
 
 (merge-with merge-fn {:a 1, :b 2, :c 5} {:a 2, :b 2})
 #_=> {:a 2, :b [2 2], :c 5}
@@ -36,7 +36,7 @@ the resulting (left) value.
 (def default-fn (fn [a b] a))
 
 (def merge-fn
-  (rule/cond-fn [[(fn [a b] (= a b)) (fn [a b] [a b])]]
+  (rule/cond-fn [(fn [a b] (= a b)) (fn [a b] [a b])]
     default-fn))
 
 (merge-with merge-fn {:a 1, :b 2} {:a 2, :b 2})
@@ -52,7 +52,7 @@ With utility fns and non-anonymous functions.
 (def default-fn u/left)
 
 (def merge-fn
-  (rule/cond-fn [[= vector]]
+  (rule/cond-fn [= vector]
     default-fn))
 ;; Same functionality
 ```
@@ -61,7 +61,7 @@ With `default-fn` "injected" into `cond-fn`:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[= vector]] u/left))
+  (rule/cond-fn [= vector] u/left))
 ;; Same functionality
 ```
 
@@ -89,8 +89,8 @@ Add element to `vector`, or create one if none of the elements are:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[(u/or-fn vector? (constantly false)) conj]
-                 [(u/or-fn (constantly false) vector?) #(conj %2 %1)]]
+  (rule/cond-fn [(u/or-fn vector? (constantly false)) conj
+                 (u/or-fn (constantly false) vector?) #(conj %2 %1)]
     vector))
 
 (merge-with merge-fn {:a 1 :b [2] :c 3} {:a 4 :b 5 :c [6]})
@@ -106,8 +106,8 @@ Add element to `vector`, or create one if none of the elements are:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[(u/and-fn vector? u/_) conj]
-                 [(u/and-fn u/_ vector?) #(conj %2 %1)]]
+  (rule/cond-fn [(u/and-fn vector? u/_) conj
+                 (u/and-fn u/_ vector?) #(conj %2 %1)]
     vector))
 
 ;; Same functionality as the or-function.
@@ -120,8 +120,8 @@ instead of a function is expanded into `(u/and-fn f g)` if it is a condition:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[[vector? u_/] conj]
-                 [[u/_ vector?] #(conj %2 %1)]]
+  (rule/cond-fn [[vector? u_/] conj
+                 [u/_ vector?] #(conj %2 %1)]
     vector))
 
 ;; Same functionality as above
@@ -501,4 +501,56 @@ again:
 
 (path/merge-with-path merge-fn {:a {:c 2}, :c 10} {:a {:c 10} :c 2})
 #_=> {:a {:c 12}, :c 20}
+```
+
+## Larger examples
+
+Here is an example of a larger merge function in Fairbrook, heavily inspired
+upon Leiningen's meta-merge function:
+
+```clj
+(defn meta-merge-fn
+ ([] (meta-merge-fn u/right))
+ ([default]
+  (cond-fn [[(comp :keep meta) (comp :keep meta)] u/right,
+            [(comp :displace meta) (comp :displace meta)] u/right,
+            (u/or-fn (comp :keep meta)
+                     (comp :displace meta)) (ff u/left
+                                               #(-> (merge %1 %2)
+                                                    (dissoc :keep :displace))),
+            (u/or-fn (comp :displace meta)
+                     (comp :keep meta)) (ff u/right
+                                            #(-> (merge %2 %1)
+                                                 (dissoc :keep :displace)))]
+   default)))
+
+(def path-rules
+  (rule/rule-fn {[:lines-of-code] +,
+                 [:run :init] (meta-merge-fn (partial list 'do)),
+                 [:warn-on-reflection] #(or %1 %2),
+                 [:compile-deps :min-version] max}))
+
+(def coll-merge-fn
+ (cond-fn [(u/or-fn (comp :prepend meta) (comp :prepend meta))
+             (ff #(concat %2 %1)
+                 #(merge %1 (select-keys %2 [:displace])))]
+   concat))
+
+(def merge-fn
+ (<<-
+  (rule/rule-fn path-rules)
+  (u/fn3->fn2
+   (<<-
+    (rule/cond-fn [[nil? u/_] u/right,
+                   [u/_ nil?] u/left])
+    (meta-merge-fn)))
+  (rule/cond3-fn [[map? map?] (path/sub-merge-fn #'merge-fn)])
+  (u/fn3->fn2
+   (<<-
+    (rule/cond-fn [[set? set?] into,
+                   [coll? coll?] coll-merge-fn,
+                   #(= (class %1) (class %2)) u/right])
+    (fn [left right]
+      (println left "and" right "have a type mismatch!")
+      u/right)))))
 ```
