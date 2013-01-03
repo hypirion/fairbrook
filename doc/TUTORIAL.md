@@ -99,9 +99,9 @@ it helps us any:
 ```clj
 ;; add this within the require: [fairbrook.rule :as rule]
 (def merge-fn
-  (rule/cond-fn [[(fn [new _] (number? new)) +]
-                 [(fn [new _] (time/datetime? new)) time/latest]
-                 [(fn [_ _] :else) (fn [_ old] old)]]))
+  (rule/cond-fn [(fn [new _] (number? new)) +,
+                 (fn [new _] (time/datetime? new)) time/latest,
+                 (fn [_ _] :else) (fn [_ old] old)]))
 ```
 
 As of right now, this looks even worse than the non-fairbrook merge function! We
@@ -110,10 +110,9 @@ us get to the basics first:
 
 `cond-fn` returns a function instead of automatically dispatch on values —
 therefore we have to change the `defn` into a `def`. `cond-fn` takes as first
-argument a vector of vectors, and every vector within the vector must have two
-elements: a *test* function and a *use* function. For example, in
-`[(fn [new _] (number? new)) +]`, `(fn [new _] (number? new))` is the *test* function,
-and `+` is the *use* function.
+argument a even-sized vector, and every "pair" has a *test* function and a *use*
+function. For example, in `(fn [new _] (number? new)) +,`, `(fn [new _] (number?
+new))` is the *test* function, and `+` is the *use* function.
 
 Whenever `merge-fn` is called, it will walk through every pair in order and call
 the test function with the two values it was given. If the test function returns
@@ -129,8 +128,8 @@ result:
 
 ```clj
 (def merge-fn
-  (rule/cond-fn [[(fn [new _] (number? new)) +]
-                 [(fn [new _] (time/datetime? new)) time/latest]]))
+  (rule/cond-fn [(fn [new _] (number? new)) +
+                 (fn [new _] (time/datetime? new)) time/latest]))
 ```
 
 Since our last test was the `:else` case of our earlier `cond`, we can omit it
@@ -150,8 +149,8 @@ versa, we can do this here:
                  (fn [new _] (time/datetime? new)) time/latest}))
 ```
 
-It doesn't change much, but it tells the reader that the order of the test
-functions doesn't matter.
+It doesn't change much, but it tells the reader that the order of the tests
+doesn't matter.
 
 The remaining ugly part is the `(fn [new _] ...)`. Since it is very common to do
 tests which test the different values independently and then either `or`s or
@@ -169,12 +168,12 @@ this:
 like writing `(fn [x y] (and (foo x) (bar y)))`, and `(or-fn foo bar)` is
 equivalent, except it uses `or` instead of `and`.
 
-The visual clutter is now related to `(constantly true)` and
-`(constantly false)`. They are pretty large code-wise, and it would be nice if
-we could remove these. While there's no utility function for `(constantly
-false)`, `fairbrook.util` has a function named `_` which is exactly like
-`(constantly true)`. Using `_` and converting the `u/or-fn` to `u/and-fn` makes
-us stand with the following snippet:
+The visual clutter is now related to `(constantly true)` and `(constantly
+false)`. They are pretty large code-wise, and it would be nice if we could
+remove these. While there's no utility function for `(constantly false)`,
+`fairbrook.util` has a function named `_` which is exactly like `(constantly
+true)`. Using `_` and converting the `u/or-fn` to `u/and-fn` makes us stand with
+the following snippet:
 
 ```clj
 ;; Add a refer like this: [fairbrook.util :as u :refer [_]]
@@ -335,7 +334,7 @@ possible.
 Using `cond-fn` or `type-fn` is fine as long as all the keys with these
 properties behave in the same way. If every pair of numbers should be added or
 every pair collections concatenated, this is the correct way to go. However,
-real life is seldom like that, and most of the times we should do merging based
+real life is seldom like that, and most of the time we should do merging based
 on what exact key we should merge on instead.
 
 Our boss would now like to keep track of the highest bill ever received as
