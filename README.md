@@ -28,14 +28,14 @@ within your `project.clj`:
 To get a better understanding of fairbrook, have a look at the
 [tutorial](https://github.com/hyPiRion/fairbrook/blob/master/doc/TUTORIAL.md),
 or if you just want a taste, skim through the
-["quick" "tutorial"](https://github.com/hyPiRion/fairbrook/blob/master/doc/QUICK-TUTORIAL.md)
-to get a taste of what it looks like.
+[examples](https://github.com/hyPiRion/fairbrook/blob/master/doc/EXAMPLES.md) to
+get a taste of what it looks like.
 
 ## License
 
 The fairbrook logo is a closeup from the image *Falls Of The Ogwen, Nant
 Frangon*, which is in the public domain because its copyright has expired.
 
-Copyright © 2012 Jean Niklas L'orange
+Copyright © 2012-2013 Jean Niklas L'orange
 
 Distributed under the Eclipse Public License, the same as Clojure.

@@ -1,7 +1,9 @@
 * Fairbrook 0.2.0
 - [ ] Performance (reduce-kv?)
+- [ ] Make type-fn go from most specific to least specific
 - [ ] Stack usage
 - [ ] Codox
+- [ ] Meta documentation
 
 * Fairbrook 0.1.0
 - [X] Find good design(s) which may be of use.
@@ -9,18 +11,18 @@
     - [X] Arity
   - [X] Sensible (well, it SEEMS like a good idea currently)
   - [X] Independent
-- [-] Implement them.
+- [X] Implement them.
   - [X] Meta
   - [X] Path
   - [X] Key
-  - [ ] Rule
-    - [ ] Change cond-fn and cond3-fn's functionality
+  - [X] Rule
+    - [X] Change cond-fn and cond3-fn's functionality
   - [X] Utils
 - [X] Naming scheme
   - [X] Succinct
   - [X] Consistent
-- [ ] Documentation
+- [-] Documentation
   - [ ] Tests
     Not for testing correctness now, but to figure out whether the
     design is usable or not
-  - [ ] Tutorial
+  - [X] Tutorial
