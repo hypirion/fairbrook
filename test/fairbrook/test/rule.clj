@@ -205,3 +205,27 @@
 
            {:jar :preview, :var :x} {:jar :snapshot, :var :y}
            #_=> {:jar :snapshot, :var :y}))))
+
+(deftest test-rule-fn
+  (let [rules {:a +, :b *, :c -}
+        merge-fn (rule-fn rules)
+        merge2-fn (rule-fn rules (fn [a b c] b))]
+    (testing "that basic rule-fn usage works correctly"
+      (are [a b expected]
+           (= (key/merge-with-key merge-fn a b) expected)
+
+           {:a 4, :b 4, :c 4} {:a 4, :b 4, :c 4}
+           #_=> {:a 8, :b 16, :c 0}
+
+           {:foo :bar} {:foo :quux}
+           #_=> {:foo :quux}))
+
+    (testing "that a default function is used if no rule is matched"
+      (are [a b expected]
+           (= (key/merge-with-key merge2-fn a b) expected)
+
+           {:a 4, :b 4, :c 4} {:a 4, :b 4, :c 4}
+           #_=> {:a 8, :b 16, :c 0}
+
+           {:foo :bar} {:foo :quux}
+           #_=> {:foo :bar}))))
