@@ -92,3 +92,5 @@
            (subpath? [:a :b :c]) #_=> false
            (subpath? [:c :b]) #_=> true
            (subpath? [:c :d]) #_=> false))))
+
+;;; merge-with-path is tested within the combined test set

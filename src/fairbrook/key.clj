@@ -13,7 +13,7 @@
                           (assoc m k v))))
         key-merge (fn [m1 m2]
                     (reduce merge-entry (or m1 {}) (seq m2)))]
-    (reduce key-merge maps)))
+    (reduce key-merge nil maps)))
 
 (defn merge-with-key-fn
   "Returns a function taking two maps m1 and m2. When called, merges the two
