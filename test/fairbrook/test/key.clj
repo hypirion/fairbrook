@@ -76,3 +76,33 @@
 
            [{:c -1021, :d []} {:c 1022, :d [7 8 9]}]
            #_=> {:c 1, :d {}}))))
+
+(deftest test-merge-with-key
+  (testing "that merge-with-key invokes f with 3 arguments on collision"
+    (let [f (fn [a b c] (cond (= a :a) b, (= a :b) [b c], :else [a b c]))]
+      (are [maps expected]
+           (= (apply merge-with-key f maps) expected)
+
+           []
+           #_=> nil
+
+           [{}]
+           #_=> {}
+
+           [{:a :b :b :c :d :e}]
+           #_=> {:a :b :b :c :d :e}
+
+           [{:a '(4 5)} {:a [3 2]} {:a #{1}}]
+           #_=> {:a '(4 5)}
+
+           [{:b [1 2]} {:b '(3 4)}]
+           #_=> {:b [[1 2] '(3 4)]}
+
+           [{:c 17} {:c 18} {:c 19}]
+           #_=> {:c [:c [:c 17 18] 19]}
+
+           [{:a 1} {:b 2} {:c 3} {:d 4}]
+           #_=> {:a 1, :b 2, :c 3, :d 4}
+
+           [{:a [1 2]} {:b '(2 3)} {:a [5 6], :b '(8 9)}]
+           #_=> {:a [1 2], :b '[(2 3) (8 9)]}))))
