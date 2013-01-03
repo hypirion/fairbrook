@@ -7,6 +7,12 @@
     (are [rules maps expected]
          (= (apply path-merge rules maps) expected)
 
+         {} []
+         #_=> nil
+
+         {} [{}]
+         #_=> {}
+
          {[:a] +} [{:a 1} {:a 2}]
          #_=> {:a 3}
 
@@ -54,6 +60,14 @@
   (testing "that path-merge-with applies the default fn when merging non-rules"
     (are [rules f maps expected]
          (= (apply path-merge-with rules f maps) expected)
+
+         {} (fn [& r] r)
+         []
+         #_=> nil
+
+         {} (fn [& r] r)
+         [{}]
+         #_=> {}
 
          {} (fn [v v2] [v v2])
          [{:a 10, :b :buxor} {:a :yxa} {:c :not-merged} {:b :xerxes}]
