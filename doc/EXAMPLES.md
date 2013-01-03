@@ -348,7 +348,7 @@ default to the rightmost value if nothing of this is is true. (This sounds more
 complicated than it really is.)
 
 ```clj
-(import 'clojure.java.IPersistentSet)
+(import 'clojure.lang.IPersistentSet)
 
 (def int-stuff
   (rule/cond-fn {[odd? odd?] +,
@@ -432,7 +432,7 @@ giving the other `rule-fn` as second parameter to `fn3->fn2` (put in there by
 `<<-`):
 
 ```clj
-(import 'clojure.java.IPersistentSet)
+(import 'clojure.lang.IPersistentSet)
 
 (def merge-fn
   (<<-

@@ -269,3 +269,154 @@ Will keep d , c is discarded\n"
 "The alias a is defined multiple times:
 as :b and as :t
 Will keep :b , :t is discarded\n")))
+
+(deftest test-example-combinations
+  (testing "that \"recursive merge manually\" example work correctly"
+    (def rules {[:a :b :c] +, [:a :c] *, [:c :b] into})
+    (def merge-fn
+      (rule/rule-fn rules
+                    (rule/cond3-fn {[(path/subpath?-fn (keys rules)) u/_ u/_]
+                                    (path/sub-merge-fn #'merge-fn)}
+                                   u/left)))
+    (are [a b expected]
+         (= (path/merge-with-path merge-fn a b) expected)
+
+         {:c {:b [1 2]}} {:c {:b [3 4]}}
+         #_=> {:c {:b [1 2 3 4]}}
+
+         {:a {:b {:c 10}, :c 10}} {:a {:b {:c 2}, :c 2}}
+         #_=> {:a {:b {:c 12}, :c 20}}
+
+         {:c {:not :subpath}} {:c {:a :b}}
+         #_=> {:c {:a :b, :not :subpath}}))
+
+  (testing "that the \"general chaining\" example works correctly"
+
+    (import 'clojure.lang.IPersistentSet)
+
+    (def int-stuff
+      (rule/cond-fn {[odd? odd?] +,
+                     [even? even?] *,
+                     > -,
+                     < #(- %2 %1)}
+                    u/err-fn)) ;; This won't happen,
+                               ;; but better to be safe than sorry
+
+    (def merge-fn
+      (rule/cond-fn {[integer? integer?] int-stuff,
+                     [map? map?] (partial merge-with u/left)}
+                    (rule/type-fn {IPersistentSet into, ;; poor man's union
+                                   [IPersistentSet Number] conj,
+                                   [Number IPersistentSet] #(conj %2 %1),
+                                   Number hash-set}
+                                  u/right)))
+    (are [a b expected]
+         (= (merge-with merge-fn a b) expected)
+
+         {:a 1 :b {:almost :empty}} {:a 9 :b {}}
+         #_=> {:a 10, :b {:almost :empty}}
+
+         {:a 3 :b 4, :c 8} {:a 6 :b 1 :c 4}
+         #_=> {:a 3, :b 3, :c 32}))
+
+  (testing "that the `fn3->fn2` examples works correctly."
+    (def merge-fn
+      (u/<<-
+       (rule/rule-fn {:a concat, :b into})
+       (u/fn3->fn2
+        (rule/cond-fn {[integer? integer?] +}))))
+
+    (are [a b expected]
+         (= (key/merge-with-key merge-fn a b) expected)
+
+         {:a [1 2], :b #{1 2}} {:a [3 4], :b #{3 -1}}
+         #_=> {:a '(1 2 3 4), :b #{-1 1 2 3}}
+
+         {:c 4, :d :foo} {:c 4, :d :bar}
+         #_=> {:c 8, :d :bar})
+
+    (import 'clojure.lang.IPersistentSet)
+
+    (def merge-fn
+      (u/<<-
+       (rule/rule-fn {:a concat, :b into})
+       (u/fn3->fn2
+        (u/<<-
+         (rule/cond-fn {[integer? integer?] +})
+         (rule/type-fn {IPersistentSet into})))))
+
+    (are [a b expected]
+         (= (key/merge-with-key merge-fn a b) expected)
+
+         {:a #{1 2}, :c #{1 2}, :d 1} {:a #{2 1}, :c #{1 2}, :d 4}
+         #_=> {:a '(1 2 1 2), :c #{1 2}, :d 5}
+
+         {:c [1 2 3]} {:c [4 5 6]}
+         #_=> {:c [4 5 6]})
+
+    (import 'clojure.lang.IPersistentSet)
+
+    (def merge-fn
+      (u/<<-
+       (rule/rule-fn {:a concat, :b into})
+       (u/fn3->fn2
+        (u/<<-
+         (rule/cond-fn {[integer? integer?] +})
+         (rule/type-fn {IPersistentSet into})))
+       (rule/rule-fn {:c interleave})))
+
+    (are [a b expected]
+         (= (key/merge-with-key merge-fn a b) expected)
+
+         {:c #{1 2 3}} {:c #{4 5 6}}
+         #_=> {:c #{1 2 3 4 5 6}}
+
+         {:a #{1}, :c [1 2 3]} {:a [4 5 6], :c [4 5 6]}
+         #_=> {:a '(1 4 5 6), :c '(1 4 2 5 3 6)}))
+
+  (testing "that the `prep-args` examples work as intended"
+
+    (def f-rules {[:a :b] +, [:a :c] *, [:d] u/left})
+
+    (def subpath? (path/subpath?-fn (keys f-rules)))
+
+    (def merge-fn
+      (u/<<-
+       (rule/rule-fn f-rules)
+       (rule/cond3-fn {[subpath? u/_ u/_] (path/sub-merge-fn #'merge-fn)})
+       (u/prep-args [p v1 v2] [(peek p) v1 v2]
+                    (rule/rule-fn {:a *, :c +}))))
+
+    (are [a b expected]
+         (= (path/merge-with-path merge-fn a b) expected)
+
+         {:a {:b 2, :c 5}} {:a {:b 3, :c 4}}
+         #_=> {:a {:c 20, :b 5}}
+
+         {:a {:a 6}, :c 20} {:a {:a 10}, :c 13}
+         #_=> {:a {:a 60}, :c 33}
+
+         {:d {:a 15, :c 10}} {:d {:a 10, :c 40}}
+         #_=> {:d {:a 15, :c 10}})
+
+    (def f-rules {[:c] *, [:d] u/left})
+    (def l-rules {[:a :b] +, [:a :c] *, [:a] vector})
+
+    (def subpath? (path/subpath?-fn (mapcat keys [f-rules l-rules])))
+
+    (def merge-fn
+      (u/<<-
+       (rule/rule-fn f-rules)
+       (rule/cond3-fn {[subpath? u/_ u/_] (path/sub-merge-fn #'merge-fn)})
+       (u/prep-args [p v1 v2] [(peek p) v1 v2]
+                    (rule/rule-fn {:a *, :c +}))
+       (rule/rule-fn l-rules)))
+
+    (are [a b expected]
+         (= (path/merge-with-path merge-fn a b) expected)
+
+         {:a {:b 2, :c 5, :a 10}} {:a {:b 3, :c 4, :a 10}}
+         #_=> {:a {:a 100, :c 9, :b 5}}
+
+         {:a {:c 2}, :c 10} {:a {:c 10} :c 2}
+         #_=> {:a {:c 12}, :c 20})))
