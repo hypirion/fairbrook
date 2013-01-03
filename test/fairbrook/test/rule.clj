@@ -135,4 +135,23 @@
              #_=> {1 [:one :uno]}
 
              {:a :b, :c :d} {:a :b}
-             #_=> {:a [:b :b], :c :d})))))
+             #_=> {:a [:b :b], :c :d}))))
+
+  (let [rules [[map? map?] (constantly :map)
+               [number? number?] (constantly :number)
+               [map? number?] (constantly :map-number)
+               [number? map?] (constantly :number-map)]
+        merge-fn (cond-fn rules (constantly :default))]
+
+    (testing "that cond-fn expands test vectors properly"
+      (are [a b expected]
+           (= (merge-with merge-fn a b) expected)
+
+           {:a {:a :map}, :b {:another :map}} {:a {:mappy :map}, :b 120}
+           #_=> {:a :map, :b :map-number}
+
+           {:a 190, :b -109.0} {:a {:? :!} :b 7/6}
+           #_=> {:a :number-map, :b :number}
+
+           {:a "a string", :b #"a regex"} {:a 1, :b {:a :map}}
+           #_=> {:a :default, :b :default}))))
