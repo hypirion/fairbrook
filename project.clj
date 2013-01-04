@@ -1,4 +1,4 @@
-(defproject fairbrook "0.1.0"
+(defproject fairbrook "0.2.0-SNAPSHOT"
   :description "Fine-grained map manipulation for the masses."
   :url "http://github.com/hyPiRion/fairbrook"
   :license {:name "Eclipse Public License"
