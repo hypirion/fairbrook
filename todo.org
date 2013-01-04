@@ -21,8 +21,8 @@
 - [X] Naming scheme
   - [X] Succinct
   - [X] Consistent
-- [-] Documentation
-  - [ ] Tests
+- [X] Documentation
+  - [X] Tests
     Not for testing correctness now, but to figure out whether the
     design is usable or not
   - [X] Tutorial
