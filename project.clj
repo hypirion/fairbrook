@@ -6,6 +6,9 @@
   :dependencies [[org.clojure/clojure "1.2.0"]]
   :aliases {"all" ["with-profile" "dev:1.3:1.4:1.5"]}
   :plugins [[codox "0.6.4"]]
-  :profiles {:1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
+  :test-selectors {:default (complement :benchmark)
+                   :benchmark :benchmark}
+  :profiles {:dev {:dependencies [[criterium "0.3.1"]]}
+             :1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.0-RC1"]]}})
