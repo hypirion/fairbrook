@@ -12,7 +12,7 @@
   :profiles {:1.2 {:dependencies [[org.clojure/clojure "1.2.0"]]}
              :1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
-             :1.5 {:dependencies [[org.clojure/clojure "1.5.0-RC2"]]}
+             :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :dev {:dependencies [[criterium "0.3.1"]
                                   [org.clojure/clojure "1.4.0"]]
                    :test-paths ["test/benchmark"]}})
