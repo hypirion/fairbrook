@@ -11,7 +11,9 @@ functions: Most functions take one optional function as input and returns a
 function. This is done to make it easy—yet simple—to design chains of rules.
 
 fairbrook is compatible with Clojure 1.2 up to 1.5-RC1, and has no other
-dependencies than Clojure itself.
+dependencies than Clojure itself. fairbrook is currently an inactive project,
+but will be revived to attempt to revive Leiningen's merge policies. There will
+be breaking changes, so do not rely on the current implementation.
 
 If you want a taste, skim through the [examples][] for a better feel on what it
 looks like in action.
